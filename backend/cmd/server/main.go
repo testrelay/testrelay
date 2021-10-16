@@ -25,6 +25,7 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
 	eventsHttp "github.com/testrelay/testrelay/backend/internal/events/http"
 	"github.com/testrelay/testrelay/backend/internal/mail"
+	"github.com/testrelay/testrelay/backend/internal/options"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
 	"github.com/testrelay/testrelay/backend/internal/vcs"
@@ -37,12 +38,16 @@ var (
 )
 
 func init() {
-	logger := newLogger()
+	config, err := options.ConfigFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := newLogger(config)
 
-	hasuraClient := graphql.NewClient(os.Getenv("HASURA_URL"), os.Getenv("HASURA_TOKEN"))
-	githubClient := vcs.NewClient(os.Getenv("GITHUB_ACCESS_TOKEN"))
+	hasuraClient := graphql.NewClient(config.HasuraURL, config.HasuraToken)
+	githubClient := vcs.NewClient(config.GithubAccessToken)
 
-	mailer := newMailer()
+	mailer := newMailer(config)
 
 	ah = eventsHttp.AssignmentHandler{
 		HasuraClient: hasuraClient,
@@ -53,10 +58,10 @@ func init() {
 			AssignmentRepo: hasuraClient,
 			UserRepo:       hasuraClient,
 			Auth: auth.FirebaseClient{
-				Auth:            newFirebaseAuth(),
+				Auth:            newFirebaseAuth(config),
 				CustomClaimName: "https://hasura.io/jwt/claims",
 			},
-			AppURL: os.Getenv("APP_URL"),
+			AppURL: config.AppURL,
 		},
 		Logger: logger,
 		Runner: assignment.Runner{
@@ -71,10 +76,10 @@ func init() {
 		Scheduler: assignment.Scheduler{
 			Fetcher: hasuraClient,
 			SchedulerClient: scheduler.StepFunctionAssignmentScheduler{
-				StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
+				StateMachineArn: config.AssignmentSchedulerARN,
 				SFNClient: sfn.New(session.Must(session.NewSession(&aws.Config{
-					Region: aws.String(os.Getenv("AWS_REGION")),
-				})), &aws.Config{Region: aws.String(os.Getenv("AWS_REGION"))}),
+					Region: aws.String(config.AWSRegion),
+				})), &aws.Config{Region: aws.String(config.AWSRegion)}),
 			},
 			VCSCreator: githubClient,
 			Updater:    hasuraClient,
@@ -90,15 +95,14 @@ func init() {
 		},
 	}
 
-	gh = newGraphQLQueryHandler()
+	gh = newGraphQLQueryHandler(config)
 }
 
-
-func newFirebaseAuth() *firebaseAuth.Client {
+func newFirebaseAuth(config options.Config) *firebaseAuth.Client {
 	app, err := firebase.NewApp(
 		context.Background(),
 		nil,
-		option.WithCredentialsJSON([]byte(os.Getenv("GOOGLE_SERVICE_ACC"))),
+		option.WithCredentialsJSON([]byte(config.GoogleServiceAccount)),
 	)
 	if err != nil {
 		log.Fatalf("error initializing firebase app: %v", err)
@@ -112,16 +116,16 @@ func newFirebaseAuth() *firebaseAuth.Client {
 	return a
 }
 
-func newGraphQLQueryHandler() *api.GraphQLQueryHandler{
-	collector, err := vcs.NewGithubRepoCollectorFromENV()
+func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
+	collector, err := vcs.NewGithubRepoCollector(config.GithubPrivateKey, config.GithubAppID)
 	if err != nil {
 		log.Fatalf("could not init github repository collector %s", err)
 	}
 
 	gh, err := api.NewGraphQLQueryHandler(
-		os.Getenv("HASURA_URL"),
+		config.HasuraURL,
 		&api.GraphResolver{
-			HasuraURL: os.Getenv("HASURA_URL"),
+			HasuraURL: config.HasuraToken,
 			Collector: collector,
 		},
 	)
@@ -132,18 +136,16 @@ func newGraphQLQueryHandler() *api.GraphQLQueryHandler{
 	return gh
 }
 
-func newMailer() *mail.MailgunMailer {
-	mg, err := mailgun.NewMailgunFromEnv()
-	if err != nil {
-		log.Fatalf("could not generate mailgun err: %s\n", err)
-	}
+func newMailer(config options.Config) *mail.MailgunMailer {
+	mg := mailgun.NewMailgun(config.MGDomain, config.MGAPIKey)
+	mg.SetAPIBase(config.MGURL)
 
 	return &mail.MailgunMailer{MG: mg}
 }
 
-func newLogger() *zap.SugaredLogger {
+func newLogger(config options.Config) *zap.SugaredLogger {
 	zlog, _ := zap.NewDevelopment()
-	if os.Getenv("APP_ENV") == "production" {
+	if config.APPEnv == "production" {
 		zlog, _ = zap.NewProduction()
 	}
 	logger := zlog.Sugar()

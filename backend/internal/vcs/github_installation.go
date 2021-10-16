@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation"
@@ -22,19 +20,12 @@ type GithubRepoCollector struct {
 	GithubAppID int64
 }
 
-func NewGithubRepoCollectorFromENV() (GithubRepoCollector, error) {
-	pkey := os.Getenv("GITHUB_PRIVATE_KEY")
-	pkey = strings.ReplaceAll(pkey, `\n`, "\n")
-
-	appID := os.Getenv("GITHUB_APP_ID")
-	id, err := strconv.ParseInt(appID, 10, 64)
-	if err != nil {
-		return GithubRepoCollector{}, fmt.Errorf("could not parse github app id %w", err)
-	}
+func NewGithubRepoCollector(privateKey string, appID int64) (GithubRepoCollector, error) {
+	privateKey = strings.ReplaceAll(privateKey, `\n`, "\n")
 
 	return GithubRepoCollector{
-		GithubAppID: id,
-		GithubPK:    []byte(pkey),
+		GithubAppID: appID,
+		GithubPK:    []byte(privateKey),
 	}, nil
 }
 
