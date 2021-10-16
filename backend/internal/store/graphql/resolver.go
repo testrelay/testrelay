@@ -10,7 +10,7 @@ import (
 	"github.com/graphql-go/graphql"
 	hGraph "github.com/hasura/go-graphql-client"
 
-	"github.com/testrelay/testrelay/backend/internal/github"
+	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
 type RepoResolver interface {
@@ -18,7 +18,7 @@ type RepoResolver interface {
 }
 
 type RepoCollector interface {
-	CollectRepos(installationID int64) ([]github.Repo, error)
+	CollectRepos(installationID int64) ([]vcs.Repo, error)
 }
 
 type GraphResolver struct {
@@ -29,7 +29,7 @@ type GraphResolver struct {
 func (r *GraphResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error) {
 	id, ok := p.Args["business_id"].(int)
 	if !ok {
-		return []github.Repo{}, nil
+		return []vcs.Repo{}, nil
 	}
 
 	var q struct {
@@ -49,12 +49,12 @@ func (r *GraphResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, erro
 	})
 	if err != nil {
 		log.Printf("failed to query hasura with id %d err %s\n", id, err)
-		return []github.Repo{}, nil
+		return []vcs.Repo{}, nil
 	}
 
 	if q.BusinessByPK.GithubInstallationID == "" {
 		log.Printf("returned nil github installation for business")
-		return []github.Repo{}, nil
+		return []vcs.Repo{}, nil
 	}
 
 	installationID := q.BusinessByPK.GithubInstallationID

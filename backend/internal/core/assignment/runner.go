@@ -7,9 +7,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/testrelay/testrelay/backend/internal"
-	"github.com/testrelay/testrelay/backend/internal/github"
 	"github.com/testrelay/testrelay/backend/internal/mail"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
+	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
 type RunData struct {
@@ -20,7 +20,7 @@ type RunData struct {
 }
 
 type Runner struct {
-	GHClient      *github.Client
+	GHClient      *vcs.GithubClient
 	GraphQLClient *graphql.HasuraClient
 	Mailer        mail.Mailer
 	Logger        *zap.SugaredLogger

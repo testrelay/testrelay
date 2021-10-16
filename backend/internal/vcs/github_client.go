@@ -1,4 +1,4 @@
-package github
+package vcs
 
 import (
 	"archive/zip"
@@ -31,24 +31,24 @@ var (
 	letters = []rune("abcdefghijklmnopqrstuvwxyz")
 )
 
-type Client struct {
+type GithubClient struct {
 	Client      *github.Client
 	AccessToken string
 }
 
-func NewClient(accessToken string) *Client {
+func NewClient(accessToken string) *GithubClient {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: accessToken},
 	)
 
 	tc := oauth2.NewClient(context.Background(), ts)
-	return &Client{
+	return &GithubClient{
 		Client:      github.NewClient(tc),
 		AccessToken: accessToken,
 	}
 }
 
-func (c Client) CreateRepo(bName, username string) (string, error) {
+func (c GithubClient) CreateRepo(bName, username string) (string, error) {
 	name := makeRepoName(bName, username)
 	r := &github.Repository{
 		Name:         github.String(name),
@@ -81,7 +81,7 @@ var (
 	grepl = regexp.MustCompile("\\.git")
 )
 
-func (c Client) AddCollaborator(repo string, username string) error {
+func (c GithubClient) AddCollaborator(repo string, username string) error {
 	repo = repl.ReplaceAllString(repo, "")
 	repo = grepl.ReplaceAllString(repo, "")
 	pieces := strings.Split(repo, "/")
@@ -102,7 +102,7 @@ func (c Client) AddCollaborator(repo string, username string) error {
 	return fmt.Errorf("could not add %s to generated repository %s %w", username, repo, err)
 }
 
-func (c Client) addCollaborator(login string, repoName string, username string) error {
+func (c GithubClient) addCollaborator(login string, repoName string, username string) error {
 	var i int
 	var err error
 	for i < 3 {
@@ -135,7 +135,7 @@ func randSeq(n int) string {
 	return string(b)
 }
 
-func (c Client) Upload(data internal.FullAssignment) error {
+func (c GithubClient) Upload(data internal.FullAssignment) error {
 	id := data.ID
 	from := data.Test.GithubRepo
 	to := data.GithubRepoURL
@@ -262,7 +262,7 @@ func (c Client) Upload(data internal.FullAssignment) error {
 	return nil
 }
 
-func (c Client) IsSubmitted(assignment internal.FullAssignment) (bool, error) {
+func (c GithubClient) IsSubmitted(assignment internal.FullAssignment) (bool, error) {
 	owner, name := getRepoName(assignment.GithubRepoURL)
 	prs, _, err := c.Client.PullRequests.List(context.Background(), owner, name, nil)
 	if err != nil {
@@ -278,7 +278,7 @@ func (c Client) IsSubmitted(assignment internal.FullAssignment) (bool, error) {
 	return false, nil
 }
 
-func (c Client) Cleanup(assignment internal.FullAssignment, reviewers []internal.Reviewer) error {
+func (c GithubClient) Cleanup(assignment internal.FullAssignment, reviewers []internal.Reviewer) error {
 	owner, name := getRepoName(assignment.GithubRepoURL)
 	_, err := c.Client.Repositories.RemoveCollaborator(context.Background(), owner, name, assignment.Candidate.GithubUsername)
 	if err != nil {

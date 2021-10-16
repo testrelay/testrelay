@@ -22,16 +22,16 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
-	"github.com/testrelay/testrelay/backend/internal/github"
 	http2 "github.com/testrelay/testrelay/backend/internal/http"
 	"github.com/testrelay/testrelay/backend/internal/mail"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
+	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
 var (
 	client       *graphql.HasuraClient
-	githubClient *github.Client
+	githubClient *vcs.GithubClient
 	sfnClient    *sfn.SFN
 	mailer       core.Mailer
 	inviter      assignment.Inviter
@@ -50,7 +50,7 @@ func init() {
 
 	sfnClient = sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")})
 
-	githubClient = github.NewClient(os.Getenv("GITHUB_ACCESS_TOKEN"))
+	githubClient = vcs.NewClient(os.Getenv("GITHUB_ACCESS_TOKEN"))
 
 	mg, err := mailgun.NewMailgunFromEnv()
 	if err != nil {
@@ -83,7 +83,7 @@ func init() {
 		AppURL: os.Getenv("APP_URL"),
 	}
 
-	collector, err := github.NewGithubRepoCollectorFromENV()
+	collector, err := vcs.NewGithubRepoCollectorFromENV()
 	if err != nil {
 		log.Fatal(err)
 	}

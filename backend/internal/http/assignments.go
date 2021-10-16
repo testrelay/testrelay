@@ -11,15 +11,15 @@ import (
 
 	"github.com/testrelay/testrelay/backend/internal"
 	assignment2 "github.com/testrelay/testrelay/backend/internal/core/assignment"
-	"github.com/testrelay/testrelay/backend/internal/github"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
 	intTime "github.com/testrelay/testrelay/backend/internal/time"
+	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
 type AssignmentHandler struct {
 	HasuraClient *graphql.HasuraClient
-	GithubClient *github.Client
+	GithubClient *vcs.GithubClient
 	Processor    assignment2.Inviter
 	Logger       *zap.SugaredLogger
 	Scheduler    scheduler.Scheduler
