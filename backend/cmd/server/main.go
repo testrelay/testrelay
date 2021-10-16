@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	graphql2 "github.com/hasura/go-graphql-client"
 	"github.com/mailgun/mailgun-go/v4"
+	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
 	"github.com/testrelay/testrelay/backend/internal/event"
@@ -23,6 +24,7 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/graphql"
 	http2 "github.com/testrelay/testrelay/backend/internal/http"
 	"github.com/testrelay/testrelay/backend/internal/mail"
+	"github.com/testrelay/testrelay/backend/internal/scheduler"
 )
 
 var (
@@ -32,6 +34,8 @@ var (
 	mailer       mail.Mailer
 	processor    event.Processor
 	gh           *graphql.HttpHandler
+	ah           http2.AssignmentHandler
+	logger       *zap.SugaredLogger
 )
 
 func init() {
@@ -93,6 +97,23 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	zlog, _ := zap.NewDevelopment()
+	if os.Getenv("APP_ENV") == "production" {
+		zlog, _ = zap.NewProduction()
+	}
+	logger = zlog.Sugar()
+
+	ah = http2.AssignmentHandler{
+		HasuraClient: client,
+		GithubClient: githubClient,
+		Processor:    processor,
+		Logger:       logger,
+		Scheduler: scheduler.StepFunctionAssignmentScheduler{
+			StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
+			SFNClient:       sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")}),
+		},
+	}
 }
 
 func main() {
@@ -103,11 +124,11 @@ func main() {
 	r := mux.NewRouter()
 
 	a := r.PathPrefix("assignments").Subrouter()
-	a.Methods(http.MethodPost).Path("events").HandlerFunc()
-	a.Methods(http.MethodPost).Path("process").HandlerFunc()
+	a.Methods(http.MethodPost).Path("events").HandlerFunc(ah.EventHandler)
+	a.Methods(http.MethodPost).Path("process").HandlerFunc(ah.ProcessHandler)
 
 	re := r.PathPrefix("reviewers").Subrouter()
-	re.Methods(http.MethodPost).Path("events").HandlerFunc()
+	re.Methods(http.MethodPost).Path("events").HandlerFunc(rh.EventsHandler)
 
 	r.Methods(http.MethodPost).Path("graphql").HandlerFunc(gh.Query)
 

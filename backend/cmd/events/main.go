@@ -183,7 +183,7 @@ func handleAssignmentScheduled(data internal.AssignmentEvent) (events.APIGateway
 
 	assignment.GithubRepoUrl = graphql2.String(githubRepoURL)
 	b, _ := json.Marshal(AssignmentSchedulerInput{
-		AssignmentID: int(assignment.Id),
+		AssignmentID: int(assignment.ID),
 		TestStart:    t.SendNotificationAt,
 		TestDuration: int(assignment.TimeLimit) - (600),
 		Assignment:   *assignment,
@@ -191,19 +191,19 @@ func handleAssignmentScheduled(data internal.AssignmentEvent) (events.APIGateway
 
 	out, err := sfnClient.StartExecution(&sfn.StartExecutionInput{
 		Input:           aws.String(string(b)),
-		Name:            aws.String(fmt.Sprintf("assignment-%d-%d", assignment.Id, time.Now().Unix())),
+		Name:            aws.String(fmt.Sprintf("assignment-%d-%d", assignment.ID, time.Now().Unix())),
 		StateMachineArn: aws.String(os.Getenv("ASSIGNMENT_SCHEDULER_ARN")),
 	})
 	if err != nil {
 		return failAndLog(fmt.Sprintf("could not start step func exection %s", err))
 	}
 
-	err = client.UpdateAssignmentWithDetails(int(assignment.Id), *out.ExecutionArn, githubRepoURL)
+	err = client.UpdateAssignmentWithDetails(int(assignment.ID), *out.ExecutionArn, githubRepoURL)
 	if err != nil {
 		return failAndLog(
 			fmt.Sprintf(
 				"could not update assignment id %d with execution arn %s and github url %s err: %s",
-				assignment.Id,
+				assignment.ID,
 				*out.ExecutionArn,
 				githubRepoURL,
 				err,

@@ -36,7 +36,7 @@ func NewClient(url string, token string) *HasuraClient {
 
 type AssignmentUsers struct {
 	Assignment ShortAssignment `graphql:"assignment" json:"assignment"`
-	User       User       `graphql:"user" json:"user"`
+	User       User            `graphql:"user" json:"user"`
 }
 
 type ShortAssignment struct {
@@ -57,7 +57,7 @@ type Assignment struct {
 	TestId             graphql.Int    `graphql:"test_id" json:"test_id"`
 	TimeLimit          graphql.Int    `graphql:"time_limit" json:"time_limit"`
 	CandidateId        graphql.Int    `graphql:"candidate_id" json:"candidate_id"`
-	Id                 graphql.Int    `graphql:"id" json:"id"`
+	ID                 graphql.Int    `graphql:"id" json:"id"`
 	CandidateName      graphql.String `graphql:"candidate_name" json:"candidate_name"`
 	RecruiterId        graphql.Int    `graphql:"recruiter_id" json:"recruiter_id"`
 	InviteCode         graphql.String `graphql:"invite_code" json:"invite_code"`
@@ -165,4 +165,3 @@ func (h HasuraClient) NewAssignmentEvent(userID int, assignmentID int, status st
 		"status":  newStatus(status),
 	})
 }
-
