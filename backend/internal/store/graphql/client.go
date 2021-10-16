@@ -10,6 +10,7 @@ import (
 	"github.com/testrelay/testrelay/backend/internal"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
+	"github.com/testrelay/testrelay/backend/internal/core/business"
 	"github.com/testrelay/testrelay/backend/internal/core/user"
 )
 
@@ -98,6 +99,21 @@ type HasuraClient struct {
 	client *graphql.Client
 }
 
+func (h HasuraClient) GetTestBusiness(testID int) (business.Short, error) {
+	var q BusinessQuery
+	err := h.client.Query(context.Background(), &q, map[string]interface{}{
+		"test_id": graphql.Int(testID),
+	})
+	if err != nil {
+		return business.Short{}, fmt.Errorf("couldn't retrieve business from test_id %d %s", testID, err)
+	}
+
+	return business.Short{
+		Name: string(q.TestByPk.Business.Name),
+		ID:   int(q.TestByPk.Business.ID),
+	}, nil
+}
+
 func (h HasuraClient) GetReviewer(id int) (assignmentuser.ReviewerDetail, error) {
 	var q assignmentUQ
 	err := h.client.Query(context.Background(), &q, map[string]interface{}{
@@ -146,6 +162,35 @@ func (h HasuraClient) UpdateAssignmentWithDetails(id int, arn string, url string
 	return nil
 }
 
+func (h HasuraClient) UpdateAssignmentToSent(a assignment.SentDetails) error {
+	var q UserQuery
+	err := h.client.Query(context.Background(), &q, map[string]interface{}{
+		"user_id": graphql.String(a.CandidateUID),
+	})
+	if err != nil {
+		return fmt.Errorf("error fetching user for uid %s %w", a.CandidateUID, err)
+	}
+
+	if len(q.Users) == 0 {
+		return fmt.Errorf("could not find user for uid %s %w", a.CandidateUID, err)
+	}
+
+	var m UpdateAssignmentMutation
+	err = h.client.Mutate(context.Background(), &m, map[string]interface{}{
+		"id":           graphql.Int(a.ID),
+		"status":       newStatus("sent"),
+		"user_id":      graphql.Int(a.RecruiterID),
+		"candidate_id": graphql.Int(q.Users[0].ID),
+		"user_type":    graphql.String("candidate"),
+		"business_id":  graphql.Int(a.BusinessID),
+	})
+	if err != nil {
+		return fmt.Errorf("could not update candidate state to sent err: %w\n", err)
+	}
+
+	return nil
+}
+
 func (h HasuraClient) Reviewers(id int) ([]internal.Reviewer, error) {
 	var q AssignmentReviewers
 
@@ -154,6 +199,21 @@ func (h HasuraClient) Reviewers(id int) ([]internal.Reviewer, error) {
 	})
 
 	return q.AssignmentUsers.Reviewers, err
+}
+
+func (h HasuraClient) CreateUser(u *user.U) error {
+	var mu InsertUserMutation
+	err := h.client.Mutate(context.Background(), &mu, map[string]interface{}{
+		"auth_id": graphql.String(u.UID),
+		"email":   graphql.String(u.Email),
+	})
+
+	if err != nil {
+		return fmt.Errorf("could not create graph user %w", err)
+	}
+
+	u.ID = int64(mu.InsertUsersOne.ID)
+	return nil
 }
 
 func (h HasuraClient) NewAssignmentEvent(userID int, assignmentID int, status string) error {

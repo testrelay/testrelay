@@ -14,35 +14,35 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/gorilla/mux"
-	graphql2 "github.com/hasura/go-graphql-client"
 	"github.com/mailgun/mailgun-go/v4"
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
+	"github.com/testrelay/testrelay/backend/internal/auth"
+	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
 	"github.com/testrelay/testrelay/backend/internal/github"
 	http2 "github.com/testrelay/testrelay/backend/internal/http"
 	"github.com/testrelay/testrelay/backend/internal/mail"
-	mailgun2 "github.com/testrelay/testrelay/backend/internal/mail/mailgun"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
-	graphql3 "github.com/testrelay/testrelay/backend/internal/store/graphql"
+	"github.com/testrelay/testrelay/backend/internal/store/graphql"
 )
 
 var (
-	client       *graphql3.HasuraClient
+	client       *graphql.HasuraClient
 	githubClient *github.Client
 	sfnClient    *sfn.SFN
-	mailer       mail.Mailer
-	processor    assignment.EventProcessor
-	gh           *graphql3.HttpHandler
+	mailer       core.Mailer
+	inviter      assignment.Inviter
+	gh           *graphql.HttpHandler
 	ah           http2.AssignmentHandler
 	rh           http2.ReviewerHandler
 	logger       *zap.SugaredLogger
 )
 
 func init() {
-	client = graphql3.NewClient(os.Getenv("HASURA_URL"), os.Getenv("HASURA_TOKEN"))
+	client = graphql.NewClient(os.Getenv("HASURA_URL"), os.Getenv("HASURA_TOKEN"))
 
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String("eu-west-2"),
@@ -57,14 +57,7 @@ func init() {
 		log.Fatalf("could not generate mailgun err: %s\n", err)
 	}
 
-	mailer = &mailgun2.MailgunMailer{MG: mg}
-
-	graphClient := graphql2.NewClient(
-		"https://delicate-gator-74.hasura.app/v1/graphql",
-		&http.Client{
-			Transport: &graphql3.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
-		},
-	)
+	mailer = &mail.MailgunMailer{MG: mg}
 
 	options := option.WithCredentialsJSON([]byte(os.Getenv("GOOGLE_SERVICE_ACC")))
 
@@ -78,11 +71,16 @@ func init() {
 		log.Fatalf("could not generate auth client err: %s\n", err)
 	}
 
-	processor = assignment.EventProcessor{
-		GraphqlClient: graphClient,
-		Mailer:        mailer,
-		Auth:          a,
-		AppURL:        os.Getenv("APP_URL"),
+	inviter = assignment.Inviter{
+		BusinessRepo:   client,
+		Mailer:         mailer,
+		AssignmentRepo: client,
+		UserRepo:       client,
+		Auth: auth.FirebaseClient{
+			Auth:            a,
+			CustomClaimName: "https://hasura.io/jwt/claims",
+		},
+		AppURL: os.Getenv("APP_URL"),
 	}
 
 	collector, err := github.NewGithubRepoCollectorFromENV()
@@ -90,9 +88,9 @@ func init() {
 		log.Fatal(err)
 	}
 
-	gh, err = graphql3.NewHttpHandler(
+	gh, err = graphql.NewHttpHandler(
 		os.Getenv("HASURA_URL"),
-		&graphql3.GraphResolver{
+		&graphql.GraphResolver{
 			HasuraURL: os.Getenv("HASURA_URL"),
 			Collector: collector,
 		},
@@ -110,7 +108,7 @@ func init() {
 	ah = http2.AssignmentHandler{
 		HasuraClient: client,
 		GithubClient: githubClient,
-		Processor:    processor,
+		Processor:    inviter,
 		Logger:       logger,
 		Scheduler: scheduler.StepFunctionAssignmentScheduler{
 			StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),

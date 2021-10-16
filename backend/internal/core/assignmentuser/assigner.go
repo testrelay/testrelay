@@ -14,14 +14,10 @@ type VCSClient interface {
 	AddCollaborator(repo string, username string) error
 }
 
-type Mailer interface {
-	Send(config core.MailConfig, data interface{}) error
-}
-
 type Assigner struct {
 	ReviewerRepository ReviewerRepository
 	VCSClient          VCSClient
-	Mailer             Mailer
+	Mailer             core.Mailer
 }
 
 func (a Assigner) Assign(r RawReviewer) error {

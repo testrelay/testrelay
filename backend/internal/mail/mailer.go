@@ -1,18 +1,16 @@
-package mailgun
+package mail
 
 import (
 	"bytes"
 	"context"
 	"fmt"
 	"html/template"
-	"os"
 	"time"
 
 	"github.com/mailgun/mailgun-go/v4"
 
 	"github.com/testrelay/testrelay/backend/internal"
 	"github.com/testrelay/testrelay/backend/internal/core"
-	"github.com/testrelay/testrelay/backend/internal/mail"
 )
 
 var (
@@ -119,6 +117,10 @@ Has submitted their assignment. You can check it out here: {{.GithubRepoURL}}.`
 			plain: reviewInvitePlain,
 			html:  reviewInviteHTML,
 		},
+		"candidate-invite": {
+			plain: candidateInvitePlain,
+			html:  candidateInviteHtml,
+		},
 	}
 )
 
@@ -212,60 +214,6 @@ func (m *MailgunMailer) buildTemplates(name string, data interface{}) (*bytes.Bu
 	}
 
 	return plain, html, nil
-}
-
-func (m *MailgunMailer) inviteHtml(data mail.EmailData) string {
-	return fmt.Sprintf(
-		reviewInviteHTML,
-		data.CandidateName,
-		fmt.Sprintf("%s/reviews", os.Getenv("APP_URL")),
-	)
-}
-
-func (m *MailgunMailer) invitePlain(data mail.EmailData) string {
-	return fmt.Sprintf(
-		reviewInvitePlain,
-		data.CandidateName,
-		fmt.Sprintf("%s/reviews", os.Getenv("APP_URL")),
-	)
-}
-
-func (m *MailgunMailer) SendCandidateInviteEmail(data mail.CandidateEmailData) error {
-	message := m.MG.NewMessage(
-		data.Sender,
-		data.BusinessName+" has invited you to a technical test",
-		m.candidateInvitePlain(data),
-		data.Assignment.CandidateEmail,
-	)
-	message.SetHtml(m.candidateInviteHtml(data))
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	_, _, err := m.MG.Send(ctx, message)
-	return err
-}
-
-func (m *MailgunMailer) candidateInviteHtml(data mail.CandidateEmailData) string {
-	return fmt.Sprintf(
-		candidateInviteHtml,
-		data.Assignment.CandidateName,
-		data.BusinessName,
-		data.EmailLink,
-		testTime(data.Assignment.TimeLimit),
-		chooseUntil(data.Assignment.ChooseUntil),
-	)
-}
-
-func (m *MailgunMailer) candidateInvitePlain(data mail.CandidateEmailData) string {
-	return fmt.Sprintf(
-		candidateInvitePlain,
-		data.Assignment.CandidateName,
-		data.BusinessName,
-		data.EmailLink,
-		testTime(data.Assignment.TimeLimit),
-		chooseUntil(data.Assignment.ChooseUntil),
-	)
 }
 
 func chooseUntil(until string) string {

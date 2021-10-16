@@ -6,3 +6,7 @@ type MailConfig struct {
 	From         string
 	To           string
 }
+
+type Mailer interface {
+	Send(config MailConfig, data interface{}) error
+}

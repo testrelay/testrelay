@@ -20,14 +20,14 @@ import (
 type AssignmentHandler struct {
 	HasuraClient *graphql.HasuraClient
 	GithubClient *github.Client
-	Processor    assignment2.EventProcessor
+	Processor    assignment2.Inviter
 	Logger       *zap.SugaredLogger
 	Scheduler    scheduler.Scheduler
 	Runner       assignment2.Runner
 }
 
 func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) {
-	var data assignment2.HasuraEvent
+	var data HasuraEvent
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		body, _ := ioutil.ReadAll(r.Body)
@@ -43,6 +43,8 @@ func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) 
 
 	switch data.Table.Name {
 	case "assignments":
+		if data.Event.Op == "INSERT" {
+		}
 		err = a.Processor.Process(data.Event)
 		if err != nil {
 			a.Logger.Error(
