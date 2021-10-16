@@ -28,3 +28,7 @@ type VCSCleaner interface {
 type VCSSubmissionChecker interface {
 	IsSubmitted(vcsURL, username string) (bool, error)
 }
+
+type VCSCreator interface {
+	CreateRepo(businessName, username string) (string, error)
+}

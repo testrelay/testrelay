@@ -7,27 +7,18 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sfn"
+
+	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 )
-
-type StartInput struct {
-	ID           int64       `json:"id"`
-	TestStart    string      `json:"testStart"`
-	TestDuration int         `json:"testDuration"`
-	Data         interface{} `json:"data"`
-}
-
-type Scheduler interface {
-	Stop(id string) error
-	Start(input StartInput) (string, error)
-}
 
 type SFNClient interface {
 	StartExecution(input *sfn.StartExecutionInput) (*sfn.StartExecutionOutput, error)
+	StopExecution(input *sfn.StopExecutionInput) (*sfn.StopExecutionOutput, error)
 }
 
 type StepFunctionAssignmentScheduler struct {
 	StateMachineArn string
-	SFNClient       *sfn.SFN
+	SFNClient       SFNClient
 }
 
 func (s StepFunctionAssignmentScheduler) Stop(id string) error {
@@ -41,7 +32,7 @@ func (s StepFunctionAssignmentScheduler) Stop(id string) error {
 	return nil
 }
 
-func (s StepFunctionAssignmentScheduler) Start(input StartInput) (string, error) {
+func (s StepFunctionAssignmentScheduler) Start(input assignment.StartInput) (string, error) {
 	b, err := json.Marshal(input)
 	if err != nil {
 		return "", fmt.Errorf("could not marshal input %w", err)

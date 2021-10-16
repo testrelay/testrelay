@@ -120,9 +120,14 @@ func init() {
 			Mailer:            mailer,
 			Logger:            logger,
 		},
-		Scheduler: scheduler.StepFunctionAssignmentScheduler{
-			StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
-			SFNClient:       sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")}),
+		Scheduler: assignment.Scheduler{
+			Fetcher: client,
+			SchedulerClient: scheduler.StepFunctionAssignmentScheduler{
+				StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
+				SFNClient:       sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")}),
+			},
+			VCSCreator: githubClient,
+			Updater:    client,
 		},
 	}
 

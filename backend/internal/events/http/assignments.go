@@ -7,15 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	graphql2 "github.com/hasura/go-graphql-client"
 	"go.uber.org/zap"
 
-	"github.com/testrelay/testrelay/backend/internal"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/httputil"
-	"github.com/testrelay/testrelay/backend/internal/scheduler"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
-	intTime "github.com/testrelay/testrelay/backend/internal/time"
 	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
@@ -65,12 +61,22 @@ type Table struct {
 	Schema string `json:"schema"`
 	Name   string `json:"name"`
 }
+
+type AssignmentEvent struct {
+	ID           int             `json:"id"`
+	UserID       int             `json:"user_id"`
+	AssignmentID int             `json:"assignment_id"`
+	Meta         json.RawMessage `json:"meta"`
+	EventType    string          `json:"event_type"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
 type AssignmentHandler struct {
 	HasuraClient *graphql.HasuraClient
 	GithubClient *vcs.GithubClient
 	Inviter      assignment.Inviter
 	Logger       *zap.SugaredLogger
-	Scheduler    scheduler.Scheduler
+	Scheduler    assignment.Scheduler
 	Runner       assignment.Runner
 }
 
@@ -118,110 +124,24 @@ func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) 
 		}
 
 	case "assignment_events":
-		var body internal.AssignmentEvent
+		var body AssignmentEvent
 		if err := json.Unmarshal(data.Event.Data.New, &body); err != nil {
 			httputil.BadRequest(w)
 			return
 		}
 
 		if data.Event.Op == "INSERT" && body.EventType == "scheduled" {
-			a.handleAssignmentScheduled(w, body)
-			return
+			err = a.Scheduler.Start(body.AssignmentID)
+			if err != nil {
+				a.Logger.Error(
+					"could not start assignment",
+					"assignment_id", body.AssignmentID,
+					"error", err,
+				)
+				httputil.BadRequest(w)
+				return
+			}
 		}
-	}
-
-	httputil.Success(w)
-}
-
-func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data internal.AssignmentEvent) {
-	assignment, err := a.HasuraClient.GetAssignment(data.AssignmentID)
-	if err != nil {
-		a.Logger.Error(
-			"could not retrieve assignment",
-			"assignment", data.AssignmentID,
-			"error", err,
-		)
-		httputil.BadRequest(w)
-		return
-	}
-
-	if assignment.StepArn != "" {
-		err := a.Scheduler.Stop(string(assignment.StepArn))
-		if err != nil {
-			a.Logger.Error(
-				"could not stop assignment execution",
-				"error", err,
-			)
-
-			httputil.BadRequest(w)
-			return
-		}
-	}
-
-	timeInput := intTime.AssignmentChoices{
-		DayChosen:  string(assignment.TestDayChosen),
-		TimeChosen: string(assignment.TestTimeChosen),
-		Timezone:   string(assignment.TestTimezoneChosen),
-	}
-	t, err := intTime.Parse(timeInput)
-	if err != nil {
-		a.Logger.Error(
-			"formating assignment time failed",
-			"time_input", timeInput,
-			"error", err,
-		)
-
-		httputil.BadRequest(w)
-		return
-	}
-
-	githubRepoURL := string(assignment.GithubRepoUrl)
-	if githubRepoURL == "" {
-		githubRepoURL, err = a.GithubClient.CreateRepo(
-			string(assignment.Test.Business.Name),
-			string(assignment.Candidate.GithubUsername),
-		)
-		if err != nil {
-			a.Logger.Error(
-				"could not get github repo url",
-				"business_name", assignment.Test.Business.Name,
-				"github_username", assignment.Candidate.GithubUsername,
-				"error", err,
-			)
-
-			httputil.BadRequest(w)
-			return
-		}
-	}
-
-	assignment.GithubRepoUrl = graphql2.String(githubRepoURL)
-	startID, err := a.Scheduler.Start(scheduler.StartInput{
-		ID:           int64(assignment.ID),
-		TestStart:    t.SendNotificationAt,
-		TestDuration: int(assignment.TimeLimit) - 600,
-		Data:         assignment,
-	})
-	if err != nil {
-		a.Logger.Error(
-			"could not start assignment execution",
-			"error", err,
-		)
-
-		httputil.BadRequest(w)
-		return
-	}
-
-	err = a.HasuraClient.UpdateAssignmentWithDetails(int(assignment.ID), startID, githubRepoURL)
-	if err != nil {
-		a.Logger.Error(
-			"could not update assignment after assignment trigger",
-			"assignment", assignment.ID,
-			"arn", startID,
-			"repo_url", githubRepoURL,
-			"error", err,
-		)
-		httputil.BadRequest(w)
-		return
 	}
 
 	httputil.Success(w)

@@ -2,8 +2,6 @@ package graphql
 
 import (
 	"github.com/hasura/go-graphql-client"
-
-	"github.com/testrelay/testrelay/backend/internal"
 )
 
 type UserBQuery struct {
@@ -61,7 +59,7 @@ type InsertAssignmentEvent struct {
 
 type AssignmentReviewers struct {
 	AssignmentUsers struct {
-		Reviewers []internal.Reviewer `graphql:"reviewers"`
+		Reviewers []Reviewer `graphql:"reviewers"`
 	} `graphql:"assignments_by_pk(id: $id)"`
 }
 

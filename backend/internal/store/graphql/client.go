@@ -135,16 +135,55 @@ func (h HasuraClient) GetReviewer(id int) (assignmentuser.ReviewerDetail, error)
 	}, nil
 }
 
-func (h HasuraClient) GetAssignment(id int) (*Assignment, error) {
+func (h HasuraClient) GetAssignment(id int) (assignment.WithTestDetails, error) {
 	var q assignmentQ
 	err := h.client.Query(context.Background(), &q, map[string]interface{}{
 		"id": graphql.Int(id),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch graphql assignment %w", err)
+		return assignment.WithTestDetails{}, fmt.Errorf("could not fetch graphql assignment %w", err)
 	}
 
-	return &q.AssignmentsByPK, nil
+	return assignment.WithTestDetails{
+		Status:             string(q.AssignmentsByPK.Status),
+		TestTimeChosen:     string(q.AssignmentsByPK.TestDayChosen),
+		ChooseUntil:        string(q.AssignmentsByPK.ChooseUntil),
+		TestDayChosen:      string(q.AssignmentsByPK.TestDayChosen),
+		TestID:             int(q.AssignmentsByPK.TestId),
+		TimeLimit:          int(q.AssignmentsByPK.TimeLimit),
+		CandidateID:        int(q.AssignmentsByPK.CandidateId),
+		ID:                 int(q.AssignmentsByPK.ID),
+		CandidateName:      string(q.AssignmentsByPK.CandidateName),
+		RecruiterID:        int(q.AssignmentsByPK.RecruiterId),
+		InviteCode:         string(q.AssignmentsByPK.InviteCode),
+		GithubRepoURL:      string(q.AssignmentsByPK.GithubRepoUrl),
+		CandidateEmail:     string(q.AssignmentsByPK.CandidateEmail),
+		TestTimezoneChosen: string(q.AssignmentsByPK.TestTimezoneChosen),
+		StepArn:            string(q.AssignmentsByPK.StepArn),
+		Candidate: assignment.Candidate{
+			Email:             string(q.AssignmentsByPK.Candidate.Email),
+			GithubUsername:    string(q.AssignmentsByPK.Candidate.GithubUsername),
+			GithubAccessToken: string(q.AssignmentsByPK.Candidate.GithubAccessToken),
+		},
+		Recruiter: assignment.Recruiter{
+			Email: string(q.AssignmentsByPK.Recruiter.Email),
+		},
+		Test: assignment.Test{
+			Business: assignment.Business{
+				Name: string(q.AssignmentsByPK.Test.Business.Name),
+			},
+			Name:       string(q.AssignmentsByPK.Test.Name),
+			GithubRepo: string(q.AssignmentsByPK.Test.GithubRepo),
+		},
+	}, nil
+}
+
+func newInt(i int) *int {
+	return &i
+}
+
+func newString(s string) *string {
+	return &s
 }
 
 func (h HasuraClient) UpdateAssignmentWithDetails(id int, arn string, url string) error {
