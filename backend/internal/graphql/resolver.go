@@ -2,32 +2,35 @@ package graphql
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
-	"strings"
 
-	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/github"
 	"github.com/graphql-go/graphql"
 	hGraph "github.com/hasura/go-graphql-client"
+
+	"github.com/testrelay/testrelay/backend/internal/github"
+	http2 "github.com/testrelay/testrelay/backend/internal/http"
 )
 
-type Repo struct {
-	ID       int64  `json:"id"`
-	FullName string `json:"full_name"`
+type RepoResolver interface {
+	ResolveRepos(p graphql.ResolveParams) (interface{}, error)
 }
 
-type RepoResolver struct {
-	HasuraClient *hGraph.Client
+type RepoCollector interface {
+	CollectRepos(installationID int64) ([]github.Repo, error)
 }
 
-func (r *RepoResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error) {
-	var l []Repo
+type GraphResolver struct {
+	HasuraURL string
+	Collector RepoCollector
+}
+
+func (r *GraphResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error) {
 	id, ok := p.Args["business_id"].(int)
 	if !ok {
-		return l, nil
+		return []github.Repo{}, nil
 	}
 
 	var q struct {
@@ -36,45 +39,27 @@ func (r *RepoResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error
 		} `graphql:"businesses_by_pk(id: $id)"`
 	}
 
-	err := r.HasuraClient.Query(context.Background(), &q, map[string]interface{}{
+	client := hGraph.NewClient(r.HasuraURL,
+		&http.Client{
+			Transport: &http2.BearerTransport{Token: fmt.Sprintf("%s", p.Context.Value("token"))},
+		},
+	)
+
+	err := client.Query(context.Background(), &q, map[string]interface{}{
 		"id": hGraph.Int(id),
 	})
 	if err != nil {
 		log.Printf("failed to query hasura with id %d err %s\n", id, err)
-		return l, nil
+		return []github.Repo{}, nil
 	}
 
 	if q.BusinessByPK.GithubInstallationID == "" {
 		log.Printf("returned nil github installation for business")
-		return l, nil
+		return []github.Repo{}, nil
 	}
 
 	installationID := q.BusinessByPK.GithubInstallationID
 	in, _ := strconv.ParseInt(string(installationID), 10, 64)
-	pkey := os.Getenv("GITHUB_PRIVATE_KEY")
-	pkey = strings.ReplaceAll(pkey, `\n`, "\n")
 
-	itr, err := ghinstallation.New(http.DefaultTransport, 131386, in, []byte(pkey))
-	if err != nil {
-		log.Printf("failed to init a new github installation %s\n", err)
-		return l, nil
-	}
-
-	appClient := github.NewClient(&http.Client{Transport: itr})
-	repos, _, err := appClient.Apps.ListRepos(context.Background(), nil)
-	if err != nil {
-		log.Printf("failed to list repose %s\n", err)
-		return l, nil
-	}
-
-	var qrepos = make([]Repo, len(repos))
-	for i, repo := range repos {
-		qrepos[i] = Repo{
-			ID:       *repo.ID,
-			FullName: *repo.FullName,
-		}
-	}
-
-	return qrepos, nil
+	return r.Collector.CollectRepos(in)
 }
-
