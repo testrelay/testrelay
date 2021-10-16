@@ -9,7 +9,6 @@ import (
 
 	"github.com/mailgun/mailgun-go/v4"
 
-	"github.com/testrelay/testrelay/backend/internal"
 	"github.com/testrelay/testrelay/backend/internal/core"
 )
 
@@ -132,40 +131,6 @@ type t struct {
 type MailgunMailer struct {
 	MG     *mailgun.MailgunImpl
 	Domain string
-}
-
-func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) error {
-	subject := "Thanks for submitting your test for " + data.Test.Business.Name
-	if status != "submitted" {
-		subject = "You missed the deadline for submitting your test"
-	}
-
-	err := m.Send(core.MailConfig{
-		TemplateName: status,
-		Subject:      subject,
-		From:         "candidates@" + m.Domain,
-		To:           data.CandidateEmail,
-	}, data)
-	if err != nil {
-		return fmt.Errorf("could not send email to candidate %w", err)
-	}
-
-	subject = data.CandidateName + " has submitted their assignment"
-	if status != "submitted" {
-		subject = data.CandidateName + " missed the deadline to submit their assignment"
-	}
-
-	err = m.Send(core.MailConfig{
-		TemplateName: status + "-recruiter",
-		Subject:      subject,
-		From:         "candidates@" + m.Domain,
-		To:           data.Recruiter.Email,
-	}, data)
-	if err != nil {
-		return fmt.Errorf("could not send email to recruiter %w", err)
-	}
-
-	return err
 }
 
 func (m *MailgunMailer) Send(config core.MailConfig, data interface{}) error {

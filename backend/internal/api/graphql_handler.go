@@ -1,4 +1,4 @@
-package graphql
+package api
 
 import (
 	"context"
@@ -63,24 +63,24 @@ func NewSchema(resolver RepoResolver) (graphql.Schema, error) {
 	return schema, nil
 }
 
-type HttpHandler struct {
+type GraphQLQueryHandler struct {
 	hasuraURL string
 	schema    graphql.Schema
 }
 
-func NewHttpHandler(hasuraURL string, resolver RepoResolver) (*HttpHandler, error) {
+func NewGraphQLQueryHandler(hasuraURL string, resolver RepoResolver) (*GraphQLQueryHandler, error) {
 	schema, err := NewSchema(resolver)
 	if err != nil {
 		return nil, err
 	}
 
-	return &HttpHandler{
+	return &GraphQLQueryHandler{
 		hasuraURL: hasuraURL,
 		schema:    schema,
 	}, nil
 }
 
-func (h *HttpHandler) Query(w http.ResponseWriter, r *http.Request) {
+func (h *GraphQLQueryHandler) Query(w http.ResponseWriter, r *http.Request) {
 	var qr QueryRequest
 
 	err := json.NewDecoder(r.Body).Decode(&qr)
@@ -116,7 +116,7 @@ func (h *HttpHandler) Query(w http.ResponseWriter, r *http.Request) {
 	h.doQuery(context.WithValue(context.Background(), "token", jwtToken), qr, w)
 }
 
-func (h *HttpHandler) doQuery(ctx context.Context, qr QueryRequest, w http.ResponseWriter) {
+func (h *GraphQLQueryHandler) doQuery(ctx context.Context, qr QueryRequest, w http.ResponseWriter) {
 	response := graphql.Do(graphql.Params{
 		Schema:         h.schema,
 		RequestString:  qr.Query,

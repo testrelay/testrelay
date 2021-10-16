@@ -7,11 +7,11 @@ import (
 
 	"github.com/hasura/go-graphql-client"
 
-	"github.com/testrelay/testrelay/backend/internal"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
 	"github.com/testrelay/testrelay/backend/internal/core/business"
 	"github.com/testrelay/testrelay/backend/internal/core/user"
+	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
 func NewClient(url string, token string) *HasuraClient {
@@ -19,7 +19,7 @@ func NewClient(url string, token string) *HasuraClient {
 		client: graphql.NewClient(
 			url,
 			&http.Client{
-				Transport: &KeyTransport{Key: "x-hasura-admin-secret", Value: token},
+				Transport: &httputil.KeyTransport{Key: "x-hasura-admin-secret", Value: token},
 			},
 		),
 	}
@@ -191,14 +191,19 @@ func (h HasuraClient) UpdateAssignmentToSent(a assignment.SentDetails) error {
 	return nil
 }
 
-func (h HasuraClient) Reviewers(id int) ([]internal.Reviewer, error) {
+func (h HasuraClient) Reviewers(id int) ([]string, error) {
 	var q AssignmentReviewers
 
 	err := h.client.Mutate(context.Background(), &q, map[string]interface{}{
 		"id": graphql.Int(id),
 	})
 
-	return q.AssignmentUsers.Reviewers, err
+	reviewers := make([]string, len(q.AssignmentUsers.Reviewers))
+	for i, reviewer := range q.AssignmentUsers.Reviewers {
+		reviewers[i] = reviewer.GithubUsername
+	}
+
+	return reviewers, err
 }
 
 func (h HasuraClient) CreateUser(u *user.U) error {

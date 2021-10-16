@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
+	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
 type ReviewerHandler struct {
@@ -26,7 +27,7 @@ func (rh ReviewerHandler) EventsHandler(w http.ResponseWriter, r *http.Request) 
 			"body", body,
 		)
 
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
@@ -39,7 +40,7 @@ func (rh ReviewerHandler) EventsHandler(w http.ResponseWriter, r *http.Request) 
 				"data", data.Event.Data.New,
 			)
 
-			BadRequest(w)
+			httputil.BadRequest(w)
 		}
 
 		err := rh.Assigner.Assign(body)
@@ -50,7 +51,7 @@ func (rh ReviewerHandler) EventsHandler(w http.ResponseWriter, r *http.Request) 
 				"error", err,
 			)
 
-			BadRequest(w)
+			httputil.BadRequest(w)
 		}
 	}
 }

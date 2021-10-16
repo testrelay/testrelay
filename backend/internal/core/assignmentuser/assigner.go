@@ -10,13 +10,9 @@ type ReviewerRepository interface {
 	GetReviewer(id int) (ReviewerDetail, error)
 }
 
-type VCSClient interface {
-	AddCollaborator(repo string, username string) error
-}
-
 type Assigner struct {
 	ReviewerRepository ReviewerRepository
-	VCSClient          VCSClient
+	VCSClient          core.VCSCollaboratorAdder
 	Mailer             core.Mailer
 }
 

@@ -5,25 +5,73 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	graphql2 "github.com/hasura/go-graphql-client"
 	"go.uber.org/zap"
 
 	"github.com/testrelay/testrelay/backend/internal"
-	assignment2 "github.com/testrelay/testrelay/backend/internal/core/assignment"
+	"github.com/testrelay/testrelay/backend/internal/core/assignment"
+	"github.com/testrelay/testrelay/backend/internal/httputil"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
 	intTime "github.com/testrelay/testrelay/backend/internal/time"
 	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
+type HasuraEvent struct {
+	Event        Event        `json:"event"`
+	CreatedAt    time.Time    `json:"created_at"`
+	ID           string       `json:"id"`
+	DeliveryInfo DeliveryInfo `json:"delivery_info"`
+	Trigger      Trigger      `json:"trigger"`
+	Table        Table        `json:"table"`
+}
+
+type SessionVariables struct {
+	XHasuraBusinessID string `json:"x-hasura-business-id"`
+	XHasuraRole       string `json:"x-hasura-role"`
+	XHasuraUserPk     string `json:"x-hasura-user-pk"`
+	XHasuraUserID     string `json:"x-hasura-user-id"`
+}
+
+type Data struct {
+	Old json.RawMessage `json:"old"`
+	New json.RawMessage `json:"new"`
+}
+
+type TraceContext struct {
+	TraceID string `json:"trace_id"`
+	SpanID  string `json:"span_id"`
+}
+
+type Event struct {
+	SessionVariables SessionVariables `json:"session_variables"`
+	Op               string           `json:"op"`
+	Data             Data             `json:"data"`
+	TraceContext     TraceContext     `json:"trace_context"`
+}
+
+type DeliveryInfo struct {
+	MaxRetries   int `json:"max_retries"`
+	CurrentRetry int `json:"current_retry"`
+}
+
+type Trigger struct {
+	Name string `json:"name"`
+}
+
+type Table struct {
+	Schema string `json:"schema"`
+	Name   string `json:"name"`
+}
 type AssignmentHandler struct {
 	HasuraClient *graphql.HasuraClient
 	GithubClient *vcs.GithubClient
-	Processor    assignment2.Inviter
+	Inviter      assignment.Inviter
 	Logger       *zap.SugaredLogger
 	Scheduler    scheduler.Scheduler
-	Runner       assignment2.Runner
+	Runner       assignment.Runner
 }
 
 func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,29 +85,42 @@ func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) 
 			"body", body,
 		)
 
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
 	switch data.Table.Name {
 	case "assignments":
 		if data.Event.Op == "INSERT" {
-		}
-		err = a.Processor.Process(data.Event)
-		if err != nil {
-			a.Logger.Error(
-				"could not process event data",
-				"error", err,
-				"data", data,
-			)
+			var body assignment.Full
+			err := json.Unmarshal(data.Event.Data.New, &body)
+			if err != nil {
+				a.Logger.Error(
+					"could not unmarshall assignments insert event data",
+					"error", err,
+					"body", string(data.Event.Data.New),
+				)
 
-			BadRequest(w)
+				httputil.BadRequest(w)
+				return
+			}
+
+			err = a.Inviter.Invite(body)
+			if err != nil {
+				a.Logger.Error(
+					"could not process event data",
+					"error", err,
+					"data", data,
+				)
+
+				httputil.BadRequest(w)
+			}
 		}
 
 	case "assignment_events":
 		var body internal.AssignmentEvent
 		if err := json.Unmarshal(data.Event.Data.New, &body); err != nil {
-			BadRequest(w)
+			httputil.BadRequest(w)
 			return
 		}
 
@@ -69,7 +130,7 @@ func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	Success(w)
+	httputil.Success(w)
 }
 
 func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data internal.AssignmentEvent) {
@@ -80,7 +141,7 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 			"assignment", data.AssignmentID,
 			"error", err,
 		)
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
@@ -92,7 +153,7 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 				"error", err,
 			)
 
-			BadRequest(w)
+			httputil.BadRequest(w)
 			return
 		}
 	}
@@ -110,7 +171,7 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 			"error", err,
 		)
 
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
@@ -128,7 +189,7 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 				"error", err,
 			)
 
-			BadRequest(w)
+			httputil.BadRequest(w)
 			return
 		}
 	}
@@ -146,7 +207,7 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 			"error", err,
 		)
 
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
@@ -159,16 +220,16 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 			"repo_url", githubRepoURL,
 			"error", err,
 		)
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
-	Success(w)
+	httputil.Success(w)
 }
 
 type StepPayload struct {
-	Step string              `json:"step"`
-	Data assignment2.RunData `json:"data"`
+	Step string             `json:"step"`
+	Data assignment.RunData `json:"data"`
 }
 
 func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +243,7 @@ func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request
 			"error", err,
 		)
 
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
@@ -195,9 +256,9 @@ func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request
 			"error", err,
 		)
 
-		BadRequest(w)
+		httputil.BadRequest(w)
 		return
 	}
 
-	Success(w)
+	httputil.Success(w)
 }

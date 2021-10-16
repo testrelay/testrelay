@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 
-	"github.com/testrelay/testrelay/backend/internal"
+	"github.com/testrelay/testrelay/backend/internal/core"
 )
 
 var (
@@ -135,10 +135,10 @@ func randSeq(n int) string {
 	return string(b)
 }
 
-func (c GithubClient) Upload(data internal.FullAssignment) error {
+func (c GithubClient) Upload(data core.UploadDetails) error {
 	id := data.ID
-	from := data.Test.GithubRepo
-	to := data.GithubRepoURL
+	from := data.TestVCSRepoURL
+	to := data.VCSRepoURL
 
 	owner, repo := getRepoName(from)
 	u, _, err := c.Client.Repositories.GetArchiveLink(context.Background(), owner, repo, github.Zipball, nil)
@@ -262,15 +262,15 @@ func (c GithubClient) Upload(data internal.FullAssignment) error {
 	return nil
 }
 
-func (c GithubClient) IsSubmitted(assignment internal.FullAssignment) (bool, error) {
-	owner, name := getRepoName(assignment.GithubRepoURL)
+func (c GithubClient) IsSubmitted(vcsURL, username string) (bool, error) {
+	owner, name := getRepoName(vcsURL)
 	prs, _, err := c.Client.PullRequests.List(context.Background(), owner, name, nil)
 	if err != nil {
 		return false, fmt.Errorf("could not list prs %w", err)
 	}
 
 	for _, pr := range prs {
-		if pr.GetUser().GetLogin() == assignment.Candidate.GithubUsername {
+		if pr.GetUser().GetLogin() == username {
 			return true, nil
 		}
 	}
@@ -278,17 +278,17 @@ func (c GithubClient) IsSubmitted(assignment internal.FullAssignment) (bool, err
 	return false, nil
 }
 
-func (c GithubClient) Cleanup(assignment internal.FullAssignment, reviewers []internal.Reviewer) error {
-	owner, name := getRepoName(assignment.GithubRepoURL)
-	_, err := c.Client.Repositories.RemoveCollaborator(context.Background(), owner, name, assignment.Candidate.GithubUsername)
+func (c GithubClient) Cleanup(details core.CleanDetails) error {
+	owner, name := getRepoName(details.VCSRepoURL)
+	_, err := c.Client.Repositories.RemoveCollaborator(context.Background(), owner, name, details.CandidateUsername)
 	if err != nil {
 		return fmt.Errorf("could not remove collaborator from test repo %s %s %w", owner, name, err)
 	}
 
-	for _, reviewer := range reviewers {
-		err := c.addCollaborator(owner, name, reviewer.GithubUsername)
+	for _, reviewer := range details.ReviewersUsernames {
+		err := c.addCollaborator(owner, name, reviewer)
 		if err != nil {
-			return fmt.Errorf("could not add %s to repo %w", reviewer.GithubUsername, err)
+			return fmt.Errorf("could not add %s to repo %w", reviewer, err)
 		}
 	}
 

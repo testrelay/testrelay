@@ -6,24 +6,32 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/testrelay/testrelay/backend/internal"
-	"github.com/testrelay/testrelay/backend/internal/mail"
-	"github.com/testrelay/testrelay/backend/internal/store/graphql"
-	"github.com/testrelay/testrelay/backend/internal/vcs"
+	"github.com/testrelay/testrelay/backend/internal/core"
 )
 
+type EventCreator interface {
+	NewAssignmentEvent(userID int, assignmentID int, status string) error
+}
+
+type ReviewerCollector interface {
+	Reviewers(assignmentID int) ([]string, error)
+}
+
 type RunData struct {
-	ID           int                     `json:"id"`
-	TestStart    time.Time               `json:"testStart"`
-	TestDuration int                     `json:"testDuration"`
-	Data         internal.FullAssignment `json:"data"`
+	ID           int             `json:"id"`
+	TestStart    time.Time       `json:"testStart"`
+	TestDuration int             `json:"testDuration"`
+	Data         WithTestDetails `json:"data"`
 }
 
 type Runner struct {
-	GHClient      *vcs.GithubClient
-	GraphQLClient *graphql.HasuraClient
-	Mailer        mail.Mailer
-	Logger        *zap.SugaredLogger
+	Uploader          core.VCSUploader
+	Cleaner           core.VCSCleaner
+	SubmissionChecker core.VCSSubmissionChecker
+	ReviewerCollector ReviewerCollector
+	EventCreator      EventCreator
+	Mailer            core.Mailer
+	Logger            *zap.SugaredLogger
 }
 
 func (r Runner) Run(step string, data RunData) error {
@@ -31,67 +39,131 @@ func (r Runner) Run(step string, data RunData) error {
 
 	switch step {
 	case "start":
-		err := r.Mailer.Send(mail.Config{
-			TemplateName: "warning",
-			Subject:      "5 minute reminder for your " + assignment.Test.Business.Name + " assignment",
-			From:         "candidates@testrelay.io",
-			To:           assignment.CandidateEmail,
-		}, assignment)
-		if err != nil {
-			return fmt.Errorf("could not send reminder email to candidate %s %w", assignment.CandidateEmail, err)
-		}
+		return r.start(assignment)
 	case "init":
-		err := r.GHClient.Upload(assignment)
-		if err != nil {
-			return fmt.Errorf("could not upload assignment to github %w", err)
-		}
-
-		err = r.GraphQLClient.NewAssignmentEvent(assignment.CandidateID, assignment.ID, "inprogress")
-		if err != nil {
-			return fmt.Errorf("could not insert event 'inprogress' %w", err)
-		}
+		return r.init(assignment)
 	case "end":
-		err := r.Mailer.Send(mail.Config{
-			TemplateName: "end",
-			Subject:      "Your test is about to finish",
-			From:         "candidates@testrelay.io",
-			To:           assignment.CandidateEmail,
-		}, assignment)
-		if err != nil {
-			return fmt.Errorf("could not send finish email to candidate %s %w", assignment.CandidateEmail, err)
-		}
+		return r.end(assignment)
 	case "cleanup":
-		reviewers, err := r.GraphQLClient.Reviewers(assignment.ID)
-		if err != nil {
-			return fmt.Errorf("could not get reviewers for assignemnt %d %w", assignment.ID, err)
-		}
-
-		err = r.GHClient.Cleanup(assignment, reviewers)
-		if err != nil {
-			return fmt.Errorf("could not cleanup github repo for assignemnt %d %w", assignment.ID, err)
-		}
-
-		ok, err := r.GHClient.IsSubmitted(assignment)
-		if err != nil {
-			return fmt.Errorf("could not check github repo is submitted assignemnt %d %w", assignment.ID, err)
-		}
-
-		status := "submitted"
-		if !ok {
-			status = "missed"
-		}
-		err = r.GraphQLClient.NewAssignmentEvent(assignment.CandidateID, assignment.ID, status)
-		if err != nil {
-			return fmt.Errorf("could not insert event '%s' %w", status, err)
-		}
-
-		err = r.Mailer.SendEnd(status, assignment)
-		if err != nil {
-			return fmt.Errorf("could not send end emails %w", err)
-		}
+		return r.cleanup(assignment)
 	default:
 		r.Logger.Info("assignment step does not exist", "step", step)
 	}
 
 	return nil
+}
+
+func (r Runner) cleanup(assignment WithTestDetails) error {
+	reviewers, err := r.ReviewerCollector.Reviewers(assignment.ID)
+	if err != nil {
+		return fmt.Errorf("could not get reviewers for assignemnt %d %w", assignment.ID, err)
+	}
+
+	err = r.Cleaner.Cleanup(core.CleanDetails{
+		ID:                 int64(assignment.ID),
+		VCSRepoURL:         assignment.GithubRepoURL,
+		CandidateUsername:  assignment.Candidate.GithubUsername,
+		ReviewersUsernames: reviewers,
+	})
+	if err != nil {
+		return fmt.Errorf("could not cleanup github repo for assignemnt %d %w", assignment.ID, err)
+	}
+
+	ok, err := r.SubmissionChecker.IsSubmitted(assignment.GithubRepoURL, assignment.Candidate.GithubUsername)
+	if err != nil {
+		return fmt.Errorf("could not check github repo is submitted assignemnt %d %w", assignment.ID, err)
+	}
+
+	status := "submitted"
+	if !ok {
+		status = "missed"
+	}
+	err = r.EventCreator.NewAssignmentEvent(assignment.CandidateID, assignment.ID, status)
+	if err != nil {
+		return fmt.Errorf("could not insert event '%s' %w", status, err)
+	}
+
+	err = r.sendEnd(status, assignment)
+	if err != nil {
+		return fmt.Errorf("could not send end emails %w", err)
+	}
+	return nil
+}
+
+func (r Runner) end(assignment WithTestDetails) error {
+	err := r.Mailer.Send(core.MailConfig{
+		TemplateName: "end",
+		Subject:      "Your test is about to finish",
+		From:         "candidates",
+		To:           assignment.CandidateEmail,
+	}, assignment)
+	if err != nil {
+		return fmt.Errorf("could not send finish email to candidate %s %w", assignment.CandidateEmail, err)
+	}
+	return nil
+}
+
+func (r Runner) init(assignment WithTestDetails) error {
+	err := r.Uploader.Upload(core.UploadDetails{
+		ID:             int64(assignment.ID),
+		VCSRepoURL:     assignment.GithubRepoURL,
+		TestVCSRepoURL: assignment.Test.GithubRepo,
+	})
+	if err != nil {
+		return fmt.Errorf("could not upload assignment to github %w", err)
+	}
+
+	err = r.EventCreator.NewAssignmentEvent(assignment.CandidateID, assignment.ID, "inprogress")
+	if err != nil {
+		return fmt.Errorf("could not insert event 'inprogress' %w", err)
+	}
+	return nil
+}
+
+func (r Runner) start(assignment WithTestDetails) error {
+	err := r.Mailer.Send(core.MailConfig{
+		TemplateName: "warning",
+		Subject:      "5 minute reminder for your " + assignment.Test.Business.Name + " assignment",
+		From:         "candidates",
+		To:           assignment.CandidateEmail,
+	}, assignment)
+	if err != nil {
+		return fmt.Errorf("could not send reminder email to candidate %s %w", assignment.CandidateEmail, err)
+	}
+
+	return nil
+}
+
+func (r Runner) sendEnd(status string, data WithTestDetails) error {
+	subject := "Thanks for submitting your test for " + data.Test.Business.Name
+	if status != "submitted" {
+		subject = "You missed the deadline for submitting your test"
+	}
+
+	err := r.Mailer.Send(core.MailConfig{
+		TemplateName: status,
+		Subject:      subject,
+		From:         "candidates",
+		To:           data.CandidateEmail,
+	}, data)
+	if err != nil {
+		return fmt.Errorf("could not send email to candidate %w", err)
+	}
+
+	subject = data.CandidateName + " has submitted their assignment"
+	if status != "submitted" {
+		subject = data.CandidateName + " missed the deadline to submit their assignment"
+	}
+
+	err = r.Mailer.Send(core.MailConfig{
+		TemplateName: status + "-recruiter",
+		Subject:      subject,
+		From:         "candidates",
+		To:           data.Recruiter.Email,
+	}, data)
+	if err != nil {
+		return fmt.Errorf("could not send email to recruiter %w", err)
+	}
+
+	return err
 }

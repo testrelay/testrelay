@@ -18,11 +18,12 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
+	"github.com/testrelay/testrelay/backend/internal/api"
 	"github.com/testrelay/testrelay/backend/internal/auth"
 	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
-	http2 "github.com/testrelay/testrelay/backend/internal/http"
+	eventsHttp "github.com/testrelay/testrelay/backend/internal/events/http"
 	"github.com/testrelay/testrelay/backend/internal/mail"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
@@ -35,9 +36,9 @@ var (
 	sfnClient    *sfn.SFN
 	mailer       core.Mailer
 	inviter      assignment.Inviter
-	gh           *graphql.HttpHandler
-	ah           http2.AssignmentHandler
-	rh           http2.ReviewerHandler
+	gh           *api.GraphQLQueryHandler
+	ah           eventsHttp.AssignmentHandler
+	rh           eventsHttp.ReviewerHandler
 	logger       *zap.SugaredLogger
 )
 
@@ -88,9 +89,9 @@ func init() {
 		log.Fatal(err)
 	}
 
-	gh, err = graphql.NewHttpHandler(
+	gh, err = api.NewGraphQLQueryHandler(
 		os.Getenv("HASURA_URL"),
-		&graphql.GraphResolver{
+		&api.GraphResolver{
 			HasuraURL: os.Getenv("HASURA_URL"),
 			Collector: collector,
 		},
@@ -105,18 +106,27 @@ func init() {
 	}
 	logger = zlog.Sugar()
 
-	ah = http2.AssignmentHandler{
+	ah = eventsHttp.AssignmentHandler{
 		HasuraClient: client,
 		GithubClient: githubClient,
-		Processor:    inviter,
+		Inviter:      inviter,
 		Logger:       logger,
+		Runner: assignment.Runner{
+			Uploader:          githubClient,
+			Cleaner:           githubClient,
+			SubmissionChecker: githubClient,
+			ReviewerCollector: client,
+			EventCreator:      client,
+			Mailer:            mailer,
+			Logger:            logger,
+		},
 		Scheduler: scheduler.StepFunctionAssignmentScheduler{
 			StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
 			SFNClient:       sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")}),
 		},
 	}
 
-	rh = http2.ReviewerHandler{
+	rh = eventsHttp.ReviewerHandler{
 		Logger: logger,
 		Assigner: assignmentuser.Assigner{
 			ReviewerRepository: client,
