@@ -10,6 +10,7 @@ import (
 	"time"
 
 	firebase "firebase.google.com/go/v4"
+	firebaseAuth "firebase.google.com/go/v4/auth"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sfn"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/testrelay/testrelay/backend/internal/api"
 	"github.com/testrelay/testrelay/backend/internal/auth"
-	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
 	eventsHttp "github.com/testrelay/testrelay/backend/internal/events/http"
@@ -31,65 +31,94 @@ import (
 )
 
 var (
-	client       *graphql.HasuraClient
-	githubClient *vcs.GithubClient
-	sfnClient    *sfn.SFN
-	mailer       core.Mailer
-	inviter      assignment.Inviter
-	gh           *api.GraphQLQueryHandler
-	ah           eventsHttp.AssignmentHandler
-	rh           eventsHttp.ReviewerHandler
-	logger       *zap.SugaredLogger
+	gh *api.GraphQLQueryHandler
+	ah eventsHttp.AssignmentHandler
+	rh eventsHttp.ReviewerHandler
 )
 
 func init() {
-	client = graphql.NewClient(os.Getenv("HASURA_URL"), os.Getenv("HASURA_TOKEN"))
+	logger := newLogger()
 
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String("eu-west-2"),
-	}))
+	hasuraClient := graphql.NewClient(os.Getenv("HASURA_URL"), os.Getenv("HASURA_TOKEN"))
+	githubClient := vcs.NewClient(os.Getenv("GITHUB_ACCESS_TOKEN"))
 
-	sfnClient = sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")})
+	mailer := newMailer()
 
-	githubClient = vcs.NewClient(os.Getenv("GITHUB_ACCESS_TOKEN"))
-
-	mg, err := mailgun.NewMailgunFromEnv()
-	if err != nil {
-		log.Fatalf("could not generate mailgun err: %s\n", err)
+	ah = eventsHttp.AssignmentHandler{
+		HasuraClient: hasuraClient,
+		GithubClient: githubClient,
+		Inviter: assignment.Inviter{
+			BusinessRepo:   hasuraClient,
+			Mailer:         mailer,
+			AssignmentRepo: hasuraClient,
+			UserRepo:       hasuraClient,
+			Auth: auth.FirebaseClient{
+				Auth:            newFirebaseAuth(),
+				CustomClaimName: "https://hasura.io/jwt/claims",
+			},
+			AppURL: os.Getenv("APP_URL"),
+		},
+		Logger: logger,
+		Runner: assignment.Runner{
+			Uploader:          githubClient,
+			Cleaner:           githubClient,
+			SubmissionChecker: githubClient,
+			ReviewerCollector: hasuraClient,
+			EventCreator:      hasuraClient,
+			Mailer:            mailer,
+			Logger:            logger,
+		},
+		Scheduler: assignment.Scheduler{
+			Fetcher: hasuraClient,
+			SchedulerClient: scheduler.StepFunctionAssignmentScheduler{
+				StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
+				SFNClient: sfn.New(session.Must(session.NewSession(&aws.Config{
+					Region: aws.String(os.Getenv("AWS_REGION")),
+				})), &aws.Config{Region: aws.String(os.Getenv("AWS_REGION"))}),
+			},
+			VCSCreator: githubClient,
+			Updater:    hasuraClient,
+		},
 	}
 
-	mailer = &mail.MailgunMailer{MG: mg}
+	rh = eventsHttp.ReviewerHandler{
+		Logger: logger,
+		Assigner: assignmentuser.Assigner{
+			ReviewerRepository: hasuraClient,
+			VCSClient:          githubClient,
+			Mailer:             mailer,
+		},
+	}
 
-	options := option.WithCredentialsJSON([]byte(os.Getenv("GOOGLE_SERVICE_ACC")))
+	gh = newGraphQLQueryHandler()
+}
 
-	app, err := firebase.NewApp(context.Background(), nil, options)
+
+func newFirebaseAuth() *firebaseAuth.Client {
+	app, err := firebase.NewApp(
+		context.Background(),
+		nil,
+		option.WithCredentialsJSON([]byte(os.Getenv("GOOGLE_SERVICE_ACC"))),
+	)
 	if err != nil {
-		log.Fatalf("error initializing app: %v\n", err)
+		log.Fatalf("error initializing firebase app: %v", err)
 	}
 
 	a, err := app.Auth(context.Background())
 	if err != nil {
-		log.Fatalf("could not generate auth client err: %s\n", err)
+		log.Fatalf("could not generate auth client err: %s", err)
 	}
 
-	inviter = assignment.Inviter{
-		BusinessRepo:   client,
-		Mailer:         mailer,
-		AssignmentRepo: client,
-		UserRepo:       client,
-		Auth: auth.FirebaseClient{
-			Auth:            a,
-			CustomClaimName: "https://hasura.io/jwt/claims",
-		},
-		AppURL: os.Getenv("APP_URL"),
-	}
+	return a
+}
 
+func newGraphQLQueryHandler() *api.GraphQLQueryHandler{
 	collector, err := vcs.NewGithubRepoCollectorFromENV()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("could not init github repository collector %s", err)
 	}
 
-	gh, err = api.NewGraphQLQueryHandler(
+	gh, err := api.NewGraphQLQueryHandler(
 		os.Getenv("HASURA_URL"),
 		&api.GraphResolver{
 			HasuraURL: os.Getenv("HASURA_URL"),
@@ -97,48 +126,28 @@ func init() {
 		},
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("could not init graphql api handler %s", err)
 	}
 
+	return gh
+}
+
+func newMailer() *mail.MailgunMailer {
+	mg, err := mailgun.NewMailgunFromEnv()
+	if err != nil {
+		log.Fatalf("could not generate mailgun err: %s\n", err)
+	}
+
+	return &mail.MailgunMailer{MG: mg}
+}
+
+func newLogger() *zap.SugaredLogger {
 	zlog, _ := zap.NewDevelopment()
 	if os.Getenv("APP_ENV") == "production" {
 		zlog, _ = zap.NewProduction()
 	}
-	logger = zlog.Sugar()
-
-	ah = eventsHttp.AssignmentHandler{
-		HasuraClient: client,
-		GithubClient: githubClient,
-		Inviter:      inviter,
-		Logger:       logger,
-		Runner: assignment.Runner{
-			Uploader:          githubClient,
-			Cleaner:           githubClient,
-			SubmissionChecker: githubClient,
-			ReviewerCollector: client,
-			EventCreator:      client,
-			Mailer:            mailer,
-			Logger:            logger,
-		},
-		Scheduler: assignment.Scheduler{
-			Fetcher: client,
-			SchedulerClient: scheduler.StepFunctionAssignmentScheduler{
-				StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
-				SFNClient:       sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")}),
-			},
-			VCSCreator: githubClient,
-			Updater:    client,
-		},
-	}
-
-	rh = eventsHttp.ReviewerHandler{
-		Logger: logger,
-		Assigner: assignmentuser.Assigner{
-			ReviewerRepository: client,
-			VCSClient:          githubClient,
-			Mailer:             mailer,
-		},
-	}
+	logger := zlog.Sugar()
+	return logger
 }
 
 func main() {
