@@ -35,6 +35,7 @@ var (
 	processor    event.Processor
 	gh           *graphql.HttpHandler
 	ah           http2.AssignmentHandler
+	rh           http2.ReviewerHandler
 	logger       *zap.SugaredLogger
 )
 
@@ -113,6 +114,13 @@ func init() {
 			StateMachineArn: os.Getenv("ASSIGNMENT_SCHEDULER_ARN"),
 			SFNClient:       sfn.New(sess, &aws.Config{Region: aws.String("eu-west-2")}),
 		},
+	}
+
+	rh = http2.ReviewerHandler{
+		Logger:       logger,
+		Client:       client,
+		GithubClient: githubClient,
+		Mailer:       mailer,
 	}
 }
 
