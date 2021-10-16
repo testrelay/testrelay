@@ -54,10 +54,10 @@ type FullAssignment struct {
 	GithubRepoURL      string    `json:"github_repo_url"`
 	CandidateEmail     string    `json:"candidate_email"`
 	TestTimezoneChosen string    `json:"test_timezone_chosen"`
-	StepArn            string    `json:"step_arn"`
-	Candidate          Candidate `json:"candidate"`
-	Recruiter          Recruiter `json:"recruiter"`
-	Test               Test      `json:"test"`
+	StepArn   string    `json:"step_arn"`
+	Candidate Candidate `json:"candidate"`
+	Recruiter Recruiter `json:"recruiter"`
+	Test      Test      `json:"test"`
 }
 
 type Candidate struct {
@@ -71,8 +71,8 @@ type Recruiter struct {
 }
 
 type Test struct {
-	Business   Business `json:"business"`
-	Name       string   `json:"name"`
+	Business Business `json:"business"`
+	Name     string   `json:"name"`
 	GithubRepo string   `json:"github_repo"`
 }
 
@@ -82,16 +82,4 @@ type Business struct {
 
 type Reviewer struct {
 	GithubUsername string `graphql:"github_username" json:"github_username"`
-}
-
-type StepPayload struct {
-	Step string `json:"step"`
-	Data Data   `json:"data"`
-}
-
-type Data struct {
-	AssignmentID int            `json:"assignmentId"`
-	TestStart    time.Time      `json:"testStart"`
-	TestDuration int            `json:"testDuration"`
-	Assignment   FullAssignment `json:"assignment"`
 }

@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/testrelay/testrelay/backend/internal"
-	"github.com/testrelay/testrelay/backend/internal/event"
+	"github.com/testrelay/testrelay/backend/internal/assignment"
 	"github.com/testrelay/testrelay/backend/internal/github"
 	"github.com/testrelay/testrelay/backend/internal/graphql"
 	"github.com/testrelay/testrelay/backend/internal/mail"
@@ -22,7 +22,7 @@ type ReviewerHandler struct {
 }
 
 func (rh ReviewerHandler) EventsHandler(w http.ResponseWriter, r *http.Request) {
-	var data event.HasuraEvent
+	var data assignment.HasuraEvent
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		body, _ := ioutil.ReadAll(r.Body)

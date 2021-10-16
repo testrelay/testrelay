@@ -11,7 +11,6 @@ import (
 	hGraph "github.com/hasura/go-graphql-client"
 
 	"github.com/testrelay/testrelay/backend/internal/github"
-	http2 "github.com/testrelay/testrelay/backend/internal/http"
 )
 
 type RepoResolver interface {
@@ -41,7 +40,7 @@ func (r *GraphResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, erro
 
 	client := hGraph.NewClient(r.HasuraURL,
 		&http.Client{
-			Transport: &http2.BearerTransport{Token: fmt.Sprintf("%s", p.Context.Value("token"))},
+			Transport: &BearerTransport{Token: fmt.Sprintf("%s", p.Context.Value("token"))},
 		},
 	)
 

@@ -16,7 +16,7 @@ type StartInput struct {
 	Data         interface{} `json:"data"`
 }
 
-type AssignmentScheduler interface {
+type Scheduler interface {
 	Stop(id string) error
 	Start(input StartInput) (string, error)
 }

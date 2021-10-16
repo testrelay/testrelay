@@ -10,19 +10,6 @@ import (
 	"github.com/testrelay/testrelay/backend/internal"
 )
 
-// KeyTransport adds a keyed header to the request
-type KeyTransport struct {
-	Key   string
-	Value string
-}
-
-// RoundTrip implements the roundtripper interface adding a key value to the request.
-func (t *KeyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Add(t.Key, t.Value)
-
-	return http.DefaultTransport.RoundTrip(req)
-}
-
 func NewClient(url string, token string) *HasuraClient {
 	return &HasuraClient{
 		client: graphql.NewClient(

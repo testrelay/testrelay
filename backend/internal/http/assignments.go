@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -9,7 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/testrelay/testrelay/backend/internal"
-	"github.com/testrelay/testrelay/backend/internal/event"
+	"github.com/testrelay/testrelay/backend/internal/assignment"
 	"github.com/testrelay/testrelay/backend/internal/github"
 	"github.com/testrelay/testrelay/backend/internal/graphql"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
@@ -19,13 +20,14 @@ import (
 type AssignmentHandler struct {
 	HasuraClient *graphql.HasuraClient
 	GithubClient *github.Client
-	Processor    event.Processor
+	Processor    assignment.EventProcessor
 	Logger       *zap.SugaredLogger
-	Scheduler    scheduler.AssignmentScheduler
+	Scheduler    scheduler.Scheduler
+	Runner       assignment.Runner
 }
 
 func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) {
-	var data event.HasuraEvent
+	var data assignment.HasuraEvent
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		body, _ := ioutil.ReadAll(r.Body)
@@ -162,6 +164,38 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 	Success(w)
 }
 
-func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request) {
+type StepPayload struct {
+	Step string             `json:"step"`
+	Data assignment.RunData `json:"data"`
+}
 
+func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request) {
+	var data StepPayload
+	err := json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		b, _ := io.ReadAll(r.Body)
+		a.Logger.Error(
+			"could not decode assignment process payload",
+			"body", string(b),
+			"error", err,
+		)
+
+		BadRequest(w)
+		return
+	}
+
+	err = a.Runner.Run(data.Step, data.Data)
+	if err != nil {
+		a.Logger.Error(
+			"run step errored",
+			"step", data.Step,
+			"data", data.Data,
+			"error", err,
+		)
+
+		BadRequest(w)
+		return
+	}
+
+	Success(w)
 }

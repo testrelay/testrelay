@@ -1,4 +1,4 @@
-package mail
+package mailgun
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"github.com/mailgun/mailgun-go/v4"
 
 	"github.com/testrelay/testrelay/backend/internal"
+	"github.com/testrelay/testrelay/backend/internal/mail"
 )
 
 var (
@@ -116,38 +117,9 @@ Has submitted their assignment. You can check it out here: {{.GithubRepoURL}}.`
 	}
 )
 
-type CandidateEmailData struct {
-	Sender       string
-	EmailLink    string
-	BusinessName string
-	Assignment   internal.Assignment
-}
-
-type EmailData struct {
-	Sender        string
-	EmailLink     string
-	BusinessName  string
-	Email         string
-	CandidateName string
-}
-
 type t struct {
 	plain string
 	html  string
-}
-
-type Mailer interface {
-	SendReviewerInvite(data EmailData) error
-	SendCandidateInviteEmail(data CandidateEmailData) error
-	Send(config Config, data internal.FullAssignment) error
-	SendEnd(status string, data internal.FullAssignment) error
-}
-
-type Config struct {
-	TemplateName string
-	Subject      string
-	From         string
-	To           string
 }
 
 type MailgunMailer struct {
@@ -160,7 +132,7 @@ func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) err
 		subject = "You missed the deadline for submitting your test"
 	}
 
-	err := m.Send(Config{
+	err := m.Send(mail.Config{
 		TemplateName: status,
 		Subject:      subject,
 		From:         "candidates@testrelay.io",
@@ -175,7 +147,7 @@ func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) err
 		subject = data.CandidateName + " missed the deadline to submit their assignment"
 	}
 
-	err = m.Send(Config{
+	err = m.Send(mail.Config{
 		TemplateName: status + "-recruiter",
 		Subject:      subject,
 		From:         "candidates@testrelay.io",
@@ -188,7 +160,7 @@ func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) err
 	return err
 }
 
-func (m *MailgunMailer) Send(config Config, data internal.FullAssignment) error {
+func (m *MailgunMailer) Send(config mail.Config, data internal.FullAssignment) error {
 	plain, html, err := m.buildTemplates(config.TemplateName, data)
 	if err != nil {
 		return fmt.Errorf("could not build templates for test %s %w", config.TemplateName, err)
@@ -231,7 +203,7 @@ func (m *MailgunMailer) buildTemplates(name string, data interface{}) (*bytes.Bu
 	return plain, html, nil
 }
 
-func (m *MailgunMailer) SendReviewerInvite(data EmailData) error {
+func (m *MailgunMailer) SendReviewerInvite(data mail.EmailData) error {
 	message := m.MG.NewMessage(
 		data.Sender,
 		"You've been invited you to review "+data.CandidateName+"'s technical assignment",
@@ -247,7 +219,7 @@ func (m *MailgunMailer) SendReviewerInvite(data EmailData) error {
 	return err
 }
 
-func (m *MailgunMailer) inviteHtml(data EmailData) string {
+func (m *MailgunMailer) inviteHtml(data mail.EmailData) string {
 	return fmt.Sprintf(
 		reviewInviteHTML,
 		data.CandidateName,
@@ -255,7 +227,7 @@ func (m *MailgunMailer) inviteHtml(data EmailData) string {
 	)
 }
 
-func (m *MailgunMailer) invitePlain(data EmailData) string {
+func (m *MailgunMailer) invitePlain(data mail.EmailData) string {
 	return fmt.Sprintf(
 		reviewInvitePlain,
 		data.CandidateName,
@@ -263,7 +235,7 @@ func (m *MailgunMailer) invitePlain(data EmailData) string {
 	)
 }
 
-func (m *MailgunMailer) SendCandidateInviteEmail(data CandidateEmailData) error {
+func (m *MailgunMailer) SendCandidateInviteEmail(data mail.CandidateEmailData) error {
 	message := m.MG.NewMessage(
 		data.Sender,
 		data.BusinessName+" has invited you to a technical test",
@@ -279,7 +251,7 @@ func (m *MailgunMailer) SendCandidateInviteEmail(data CandidateEmailData) error 
 	return err
 }
 
-func (m *MailgunMailer) candidateInviteHtml(data CandidateEmailData) string {
+func (m *MailgunMailer) candidateInviteHtml(data mail.CandidateEmailData) string {
 	return fmt.Sprintf(
 		candidateInviteHtml,
 		data.Assignment.CandidateName,
@@ -290,7 +262,7 @@ func (m *MailgunMailer) candidateInviteHtml(data CandidateEmailData) string {
 	)
 }
 
-func (m *MailgunMailer) candidateInvitePlain(data CandidateEmailData) string {
+func (m *MailgunMailer) candidateInvitePlain(data mail.CandidateEmailData) string {
 	return fmt.Sprintf(
 		candidateInvitePlain,
 		data.Assignment.CandidateName,

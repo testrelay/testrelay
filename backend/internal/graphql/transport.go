@@ -1,4 +1,4 @@
-package http
+package graphql
 
 import "net/http"
 

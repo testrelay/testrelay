@@ -19,11 +19,12 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
-	"github.com/testrelay/testrelay/backend/internal/event"
+	"github.com/testrelay/testrelay/backend/internal/assignment"
 	"github.com/testrelay/testrelay/backend/internal/github"
 	"github.com/testrelay/testrelay/backend/internal/graphql"
 	http2 "github.com/testrelay/testrelay/backend/internal/http"
 	"github.com/testrelay/testrelay/backend/internal/mail"
+	mailgun2 "github.com/testrelay/testrelay/backend/internal/mail/mailgun"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
 )
 
@@ -31,9 +32,9 @@ var (
 	client       *graphql.HasuraClient
 	githubClient *github.Client
 	sfnClient    *sfn.SFN
-	mailer       mail.Mailer
-	processor    event.Processor
-	gh           *graphql.HttpHandler
+	mailer    mail.Mailer
+	processor assignment.EventProcessor
+	gh        *graphql.HttpHandler
 	ah           http2.AssignmentHandler
 	rh           http2.ReviewerHandler
 	logger       *zap.SugaredLogger
@@ -55,12 +56,12 @@ func init() {
 		log.Fatalf("could not generate mailgun err: %s\n", err)
 	}
 
-	mailer = &mail.MailgunMailer{MG: mg}
+	mailer = &mailgun2.MailgunMailer{MG: mg}
 
 	graphClient := graphql2.NewClient(
 		"https://delicate-gator-74.hasura.app/v1/graphql",
 		&http.Client{
-			Transport: &http2.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
+			Transport: &graphql.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
 		},
 	)
 
@@ -76,7 +77,7 @@ func init() {
 		log.Fatalf("could not generate auth client err: %s\n", err)
 	}
 
-	processor = event.AWSProcessor{
+	processor = assignment.EventProcessor{
 		GraphqlClient: graphClient,
 		Mailer:        mailer,
 		Auth:          a,

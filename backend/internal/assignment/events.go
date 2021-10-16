@@ -1,10 +1,11 @@
-package event
+package assignment
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"firebase.google.com/go/v4/auth"
 	"firebase.google.com/go/v4/errorutils"
@@ -15,8 +16,58 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/mail"
 )
 
-type Processor interface {
-	Process(event Event) error
+type HasuraEvent struct {
+	Event        Event        `json:"event"`
+	CreatedAt    time.Time    `json:"created_at"`
+	ID           string       `json:"id"`
+	DeliveryInfo DeliveryInfo `json:"delivery_info"`
+	Trigger      Trigger      `json:"trigger"`
+	Table        Table        `json:"table"`
+}
+
+type SessionVariables struct {
+	XHasuraBusinessID string `json:"x-hasura-business-id"`
+	XHasuraRole       string `json:"x-hasura-role"`
+	XHasuraUserPk     string `json:"x-hasura-user-pk"`
+	XHasuraUserID     string `json:"x-hasura-user-id"`
+}
+
+type Data struct {
+	Old json.RawMessage `json:"old"`
+	New json.RawMessage `json:"new"`
+}
+
+type TraceContext struct {
+	TraceID string `json:"trace_id"`
+	SpanID  string `json:"span_id"`
+}
+
+type Event struct {
+	SessionVariables SessionVariables `json:"session_variables"`
+	Op               string           `json:"op"`
+	Data             Data             `json:"data"`
+	TraceContext     TraceContext     `json:"trace_context"`
+}
+
+type DeliveryInfo struct {
+	MaxRetries   int `json:"max_retries"`
+	CurrentRetry int `json:"current_retry"`
+}
+
+type Trigger struct {
+	Name string `json:"name"`
+}
+
+type Table struct {
+	Schema string `json:"schema"`
+	Name   string `json:"name"`
+}
+
+type assignment_status_enum string
+
+func newStatus(s string) *assignment_status_enum {
+	a := assignment_status_enum(s)
+	return &a
 }
 
 type GraphqlClient interface {
@@ -24,14 +75,14 @@ type GraphqlClient interface {
 	Mutate(ctx context.Context, m interface{}, variables map[string]interface{}) error
 }
 
-type AWSProcessor struct {
+type EventProcessor struct {
 	GraphqlClient GraphqlClient
 	Mailer        mail.Mailer
 	Auth          *auth.Client
 	AppURL        string
 }
 
-func (p AWSProcessor) Process(event Event) error {
+func (p EventProcessor) Process(event Event) error {
 	bg := context.Background()
 
 	var data internal.Assignment
@@ -47,7 +98,7 @@ func (p AWSProcessor) Process(event Event) error {
 	return nil
 }
 
-func (p AWSProcessor) processSendingEvent(data internal.Assignment, bg context.Context) error {
+func (p EventProcessor) processSendingEvent(data internal.Assignment, bg context.Context) error {
 	var q graphql.BusinessQuery
 	id := data.TestId
 	err := p.GraphqlClient.Query(bg, &q, map[string]interface{}{
@@ -110,7 +161,7 @@ func (p AWSProcessor) processSendingEvent(data internal.Assignment, bg context.C
 	return nil
 }
 
-func (p AWSProcessor) createUser(data internal.Assignment, baseLink string, businessID int) (*auth.UserRecord, string, error) {
+func (p EventProcessor) createUser(data internal.Assignment, baseLink string, businessID int) (*auth.UserRecord, string, error) {
 	bg := context.Background()
 
 	user := auth.UserToCreate{}
