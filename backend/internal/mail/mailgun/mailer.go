@@ -11,6 +11,7 @@ import (
 	"github.com/mailgun/mailgun-go/v4"
 
 	"github.com/testrelay/testrelay/backend/internal"
+	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/mail"
 )
 
@@ -114,6 +115,10 @@ Has submitted their assignment. You can check it out here: {{.GithubRepoURL}}.`
 			plain: missedPlainR,
 			html:  missedHtmlR,
 		},
+		"reviewer-invite": {
+			plain: reviewInvitePlain,
+			html:  reviewInviteHTML,
+		},
 	}
 )
 
@@ -123,7 +128,8 @@ type t struct {
 }
 
 type MailgunMailer struct {
-	MG *mailgun.MailgunImpl
+	MG     *mailgun.MailgunImpl
+	Domain string
 }
 
 func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) error {
@@ -132,10 +138,10 @@ func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) err
 		subject = "You missed the deadline for submitting your test"
 	}
 
-	err := m.Send(mail.Config{
+	err := m.Send(core.MailConfig{
 		TemplateName: status,
 		Subject:      subject,
-		From:         "candidates@testrelay.io",
+		From:         "candidates@" + m.Domain,
 		To:           data.CandidateEmail,
 	}, data)
 	if err != nil {
@@ -147,10 +153,10 @@ func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) err
 		subject = data.CandidateName + " missed the deadline to submit their assignment"
 	}
 
-	err = m.Send(mail.Config{
+	err = m.Send(core.MailConfig{
 		TemplateName: status + "-recruiter",
 		Subject:      subject,
-		From:         "candidates@testrelay.io",
+		From:         "candidates@" + m.Domain,
 		To:           data.Recruiter.Email,
 	}, data)
 	if err != nil {
@@ -160,14 +166,19 @@ func (m *MailgunMailer) SendEnd(status string, data internal.FullAssignment) err
 	return err
 }
 
-func (m *MailgunMailer) Send(config mail.Config, data internal.FullAssignment) error {
+func (m *MailgunMailer) Send(config core.MailConfig, data interface{}) error {
 	plain, html, err := m.buildTemplates(config.TemplateName, data)
 	if err != nil {
 		return fmt.Errorf("could not build templates for test %s %w", config.TemplateName, err)
 	}
 
+	from := "info@" + m.Domain
+	if config.From != "" {
+		from = config.From + m.Domain
+	}
+
 	message := m.MG.NewMessage(
-		config.From,
+		from,
 		config.Subject,
 		plain.String(),
 		config.To,
@@ -201,22 +212,6 @@ func (m *MailgunMailer) buildTemplates(name string, data interface{}) (*bytes.Bu
 	}
 
 	return plain, html, nil
-}
-
-func (m *MailgunMailer) SendReviewerInvite(data mail.EmailData) error {
-	message := m.MG.NewMessage(
-		data.Sender,
-		"You've been invited you to review "+data.CandidateName+"'s technical assignment",
-		m.invitePlain(data),
-		data.Email,
-	)
-	message.SetHtml(m.inviteHtml(data))
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	_, _, err := m.MG.Send(ctx, message)
-	return err
 }
 
 func (m *MailgunMailer) inviteHtml(data mail.EmailData) string {

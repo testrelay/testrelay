@@ -19,29 +19,30 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
-	"github.com/testrelay/testrelay/backend/internal/assignment"
+	"github.com/testrelay/testrelay/backend/internal/core/assignment"
+	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
 	"github.com/testrelay/testrelay/backend/internal/github"
-	"github.com/testrelay/testrelay/backend/internal/graphql"
 	http2 "github.com/testrelay/testrelay/backend/internal/http"
 	"github.com/testrelay/testrelay/backend/internal/mail"
 	mailgun2 "github.com/testrelay/testrelay/backend/internal/mail/mailgun"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
+	graphql3 "github.com/testrelay/testrelay/backend/internal/store/graphql"
 )
 
 var (
-	client       *graphql.HasuraClient
+	client       *graphql3.HasuraClient
 	githubClient *github.Client
 	sfnClient    *sfn.SFN
-	mailer    mail.Mailer
-	processor assignment.EventProcessor
-	gh        *graphql.HttpHandler
+	mailer       mail.Mailer
+	processor    assignment.EventProcessor
+	gh           *graphql3.HttpHandler
 	ah           http2.AssignmentHandler
 	rh           http2.ReviewerHandler
 	logger       *zap.SugaredLogger
 )
 
 func init() {
-	client = graphql.NewClient(os.Getenv("HASURA_URL"), os.Getenv("HASURA_TOKEN"))
+	client = graphql3.NewClient(os.Getenv("HASURA_URL"), os.Getenv("HASURA_TOKEN"))
 
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String("eu-west-2"),
@@ -61,7 +62,7 @@ func init() {
 	graphClient := graphql2.NewClient(
 		"https://delicate-gator-74.hasura.app/v1/graphql",
 		&http.Client{
-			Transport: &graphql.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
+			Transport: &graphql3.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
 		},
 	)
 
@@ -89,9 +90,9 @@ func init() {
 		log.Fatal(err)
 	}
 
-	gh, err = graphql.NewHttpHandler(
+	gh, err = graphql3.NewHttpHandler(
 		os.Getenv("HASURA_URL"),
-		&graphql.GraphResolver{
+		&graphql3.GraphResolver{
 			HasuraURL: os.Getenv("HASURA_URL"),
 			Collector: collector,
 		},
@@ -118,10 +119,12 @@ func init() {
 	}
 
 	rh = http2.ReviewerHandler{
-		Logger:       logger,
-		Client:       client,
-		GithubClient: githubClient,
-		Mailer:       mailer,
+		Logger: logger,
+		Assigner: assignmentuser.Assigner{
+			ReviewerRepository: client,
+			VCSClient:          githubClient,
+			Mailer:             mailer,
+		},
 	}
 }
 

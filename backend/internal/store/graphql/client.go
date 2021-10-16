@@ -8,6 +8,9 @@ import (
 	"github.com/hasura/go-graphql-client"
 
 	"github.com/testrelay/testrelay/backend/internal"
+	"github.com/testrelay/testrelay/backend/internal/core/assignment"
+	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
+	"github.com/testrelay/testrelay/backend/internal/core/user"
 )
 
 func NewClient(url string, token string) *HasuraClient {
@@ -95,16 +98,25 @@ type HasuraClient struct {
 	client *graphql.Client
 }
 
-func (h HasuraClient) GetAssignmentUser(id int) (*AssignmentUsers, error) {
+func (h HasuraClient) GetReviewer(id int) (assignmentuser.ReviewerDetail, error) {
 	var q assignmentUQ
 	err := h.client.Query(context.Background(), &q, map[string]interface{}{
 		"id": graphql.Int(id),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch graphql assignment %w", err)
+		return assignmentuser.ReviewerDetail{}, fmt.Errorf("could not fetch graphql assignment %w", err)
 	}
 
-	return &q.AssignmentUsersByPK, nil
+	return assignmentuser.ReviewerDetail{
+		User: user.Short{
+			Email:          string(q.AssignmentUsersByPK.User.Email),
+			GithubUsername: string(q.AssignmentUsersByPK.User.GithubUsername),
+		},
+		Assignment: assignment.Short{
+			CandidateName: string(q.AssignmentUsersByPK.Assignment.CandidateName),
+			GithubRepoUrl: string(q.AssignmentUsersByPK.Assignment.GithubRepoUrl),
+		},
+	}, nil
 }
 
 func (h HasuraClient) GetAssignment(id int) (*Assignment, error) {

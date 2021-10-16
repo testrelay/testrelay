@@ -10,24 +10,24 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/testrelay/testrelay/backend/internal"
-	"github.com/testrelay/testrelay/backend/internal/assignment"
+	assignment2 "github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/github"
-	"github.com/testrelay/testrelay/backend/internal/graphql"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
+	"github.com/testrelay/testrelay/backend/internal/store/graphql"
 	intTime "github.com/testrelay/testrelay/backend/internal/time"
 )
 
 type AssignmentHandler struct {
 	HasuraClient *graphql.HasuraClient
 	GithubClient *github.Client
-	Processor    assignment.EventProcessor
+	Processor    assignment2.EventProcessor
 	Logger       *zap.SugaredLogger
 	Scheduler    scheduler.Scheduler
-	Runner       assignment.Runner
+	Runner       assignment2.Runner
 }
 
 func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) {
-	var data assignment.HasuraEvent
+	var data assignment2.HasuraEvent
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		body, _ := ioutil.ReadAll(r.Body)
@@ -165,8 +165,8 @@ func (a AssignmentHandler) handleAssignmentScheduled(w http.ResponseWriter, data
 }
 
 type StepPayload struct {
-	Step string             `json:"step"`
-	Data assignment.RunData `json:"data"`
+	Step string              `json:"step"`
+	Data assignment2.RunData `json:"data"`
 }
 
 func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request) {

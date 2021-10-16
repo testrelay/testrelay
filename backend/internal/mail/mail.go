@@ -2,20 +2,14 @@ package mail
 
 import (
 	"github.com/testrelay/testrelay/backend/internal"
+	"github.com/testrelay/testrelay/backend/internal/core"
 )
 
 type Mailer interface {
 	SendReviewerInvite(data EmailData) error
 	SendCandidateInviteEmail(data CandidateEmailData) error
-	Send(config Config, data internal.FullAssignment) error
+	Send(config core.MailConfig, data interface{}) error
 	SendEnd(status string, data internal.FullAssignment) error
-}
-
-type Config struct {
-	TemplateName string
-	Subject      string
-	From         string
-	To           string
 }
 
 type CandidateEmailData struct {

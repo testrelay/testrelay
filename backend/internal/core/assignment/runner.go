@@ -8,8 +8,8 @@ import (
 
 	"github.com/testrelay/testrelay/backend/internal"
 	"github.com/testrelay/testrelay/backend/internal/github"
-	"github.com/testrelay/testrelay/backend/internal/graphql"
 	"github.com/testrelay/testrelay/backend/internal/mail"
+	"github.com/testrelay/testrelay/backend/internal/store/graphql"
 )
 
 type RunData struct {
