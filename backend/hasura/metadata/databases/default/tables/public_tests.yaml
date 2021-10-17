@@ -1,0 +1,111 @@
+table:
+  name: tests
+  schema: public
+object_relationships:
+- name: business
+  using:
+    foreign_key_constraint_on: business_id
+- name: user
+  using:
+    foreign_key_constraint_on: user_id
+array_relationships:
+- name: assignments
+  using:
+    foreign_key_constraint_on:
+      column: test_id
+      table:
+        name: assignments
+        schema: public
+- name: test_languages
+  using:
+    foreign_key_constraint_on:
+      column: test_id
+      table:
+        name: test_languages
+        schema: public
+insert_permissions:
+- permission:
+    backend_only: false
+    check:
+      _or:
+      - business_id:
+          _in: X-Hasura-Business-ids
+      - user_id:
+          _eq: X-Hasura-User-pk
+    columns:
+    - business_id
+    - github_repo
+    - name
+    - test_window
+    - time_limit
+    - user_id
+    - zip
+    set:
+      user_id: x-hasura-User-pk
+  role: user
+select_permissions:
+- permission:
+    columns:
+    - business_id
+    - created_at
+    - github_repo
+    - id
+    - name
+    - test_window
+    - time_limit
+    - updated_at
+    - user_id
+    - zip
+    filter:
+      assignments:
+        candidate_id:
+          _eq: X-Hasura-User-pk
+  role: candidate
+- permission:
+    allow_aggregations: true
+    columns:
+    - github_repo
+    - name
+    - zip
+    - business_id
+    - id
+    - test_window
+    - time_limit
+    - user_id
+    - created_at
+    - updated_at
+    filter:
+      _or:
+      - business_id:
+          _in: X-Hasura-Business-ids
+      - user_id:
+          _eq: X-Hasura-User-pk
+  role: user
+update_permissions:
+- permission:
+    check: null
+    columns:
+    - business_id
+    - github_repo
+    - id
+    - name
+    - test_window
+    - time_limit
+    - user_id
+    - zip
+    filter:
+      _or:
+      - business_id:
+          _in: X-Hasura-Business-ids
+      - user_id:
+          _eq: X-Hasura-User-pk
+  role: user
+delete_permissions:
+- permission:
+    filter:
+      _or:
+      - business_id:
+          _in: X-Hasura-Business-ids
+      - user_id:
+          _eq: X-Hasura-User-pk
+  role: user

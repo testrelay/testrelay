@@ -1,0 +1,19 @@
+table:
+  name: assignment_status
+  schema: public
+is_enum: true
+array_relationships:
+- name: assignment_events
+  using:
+    foreign_key_constraint_on:
+      column: event_type
+      table:
+        name: assignment_events
+        schema: public
+- name: assignments
+  using:
+    foreign_key_constraint_on:
+      column: status
+      table:
+        name: assignments
+        schema: public

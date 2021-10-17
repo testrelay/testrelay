@@ -1,0 +1,18 @@
+- name: repos
+  definition:
+    url: https://9tt4io7yf2.execute-api.eu-west-2.amazonaws.com/v1/github/graphql
+    timeout_seconds: 60
+    forward_client_headers: true
+  comment: ""
+  permissions:
+  - role: user
+    definition:
+      schema: |-
+        schema  { query: RootQuery }
+
+        type Repo { full_name: String
+          id: Int
+        }
+
+        type RootQuery { repos(business_id: Int): [Repo]
+        }

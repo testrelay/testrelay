@@ -1,0 +1,34 @@
+table:
+  name: business_users
+  schema: public
+object_relationships:
+- name: business
+  using:
+    foreign_key_constraint_on: business_id
+- name: user
+  using:
+    foreign_key_constraint_on: user_id
+insert_permissions:
+- permission:
+    backend_only: false
+    check:
+      _or:
+      - user_id:
+          _eq: X-Hasura-User-pk
+      - business_id:
+          _in: X-Hasura-Business-ids
+    columns:
+    - business_id
+    - user_id
+    - user_type
+  role: user
+select_permissions:
+- permission:
+    columns:
+    - business_id
+    - user_id
+    - user_type
+    filter:
+      business_id:
+        _in: X-Hasura-Business-Ids
+  role: user

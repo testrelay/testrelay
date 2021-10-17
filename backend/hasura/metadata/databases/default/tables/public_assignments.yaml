@@ -1,0 +1,149 @@
+table:
+  name: assignments
+  schema: public
+object_relationships:
+- name: assignment_status
+  using:
+    foreign_key_constraint_on: status
+- name: candidate
+  using:
+    foreign_key_constraint_on: candidate_id
+- name: recruiter
+  using:
+    foreign_key_constraint_on: recruiter_id
+- name: test
+  using:
+    foreign_key_constraint_on: test_id
+array_relationships:
+- name: assignment_events
+  using:
+    foreign_key_constraint_on:
+      column: assignment_id
+      table:
+        name: assignment_events
+        schema: public
+- name: reviewers
+  using:
+    foreign_key_constraint_on:
+      column: assignment_id
+      table:
+        name: assignment_users
+        schema: public
+insert_permissions:
+- permission:
+    backend_only: false
+    check:
+      test:
+        business_id:
+          _in: X-Hasura-Business-Ids
+    columns:
+    - candidate_email
+    - candidate_id
+    - candidate_name
+    - choose_until
+    - created_at
+    - github_repo_url
+    - invite_code
+    - recruiter_id
+    - status
+    - test_day_chosen
+    - test_id
+    - test_time_chosen
+    - test_timezone_chosen
+    - time_limit
+    - updated_at
+    set:
+      recruiter_id: x-hasura-User-pk
+  role: user
+select_permissions:
+- permission:
+    columns:
+    - candidate_email
+    - candidate_id
+    - candidate_name
+    - choose_until
+    - created_at
+    - github_repo_url
+    - id
+    - invite_code
+    - status
+    - test_day_chosen
+    - test_time_chosen
+    - test_timezone_chosen
+    - time_limit
+    - updated_at
+    filter:
+      candidate_id:
+        _eq: X-Hasura-User-pk
+  role: candidate
+- permission:
+    allow_aggregations: true
+    columns:
+    - candidate_email
+    - candidate_id
+    - candidate_name
+    - choose_until
+    - created_at
+    - github_repo_url
+    - id
+    - invite_code
+    - recruiter_id
+    - status
+    - test_day_chosen
+    - test_id
+    - test_time_chosen
+    - test_timezone_chosen
+    - time_limit
+    - updated_at
+    filter:
+      test:
+        business_id:
+          _in: X-Hasura-Business-Ids
+  role: user
+update_permissions:
+- permission:
+    check:
+      candidate_id:
+        _eq: X-Hasura-User-pk
+    columns:
+    - candidate_id
+    - status
+    - test_day_chosen
+    - test_time_chosen
+    - test_timezone_chosen
+    filter: {}
+    set:
+      candidate_id: x-hasura-User-pk
+  role: candidate
+- permission:
+    check: null
+    columns:
+    - candidate_email
+    - candidate_id
+    - candidate_name
+    - choose_until
+    - github_repo_url
+    - invite_code
+    - recruiter_id
+    - status
+    - test_day_chosen
+    - test_id
+    - test_time_chosen
+    - test_timezone_chosen
+    - time_limit
+    filter:
+      test:
+        business_id:
+          _in: X-Hasura-Business-Ids
+  role: user
+event_triggers:
+- definition:
+    enable_manual: false
+    insert:
+      columns: "*"
+  name: candidate_created
+  retry_conf:
+    interval_sec: 10
+    num_retries: 0
+    timeout_sec: 60
+  webhook: "{{BACKEND_URL}}/assignments/events"

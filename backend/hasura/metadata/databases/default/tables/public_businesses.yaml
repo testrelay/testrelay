@@ -1,0 +1,77 @@
+table:
+  name: businesses
+  schema: public
+object_relationships:
+- name: creator
+  using:
+    foreign_key_constraint_on: creator_id
+array_relationships:
+- name: business_users
+  using:
+    foreign_key_constraint_on:
+      column: business_id
+      table:
+        name: business_users
+        schema: public
+- name: tests
+  using:
+    foreign_key_constraint_on:
+      column: business_id
+      table:
+        name: tests
+        schema: public
+insert_permissions:
+- permission:
+    backend_only: false
+    check:
+      creator_id:
+        _eq: X-Hasura-User-pk
+    columns:
+    - github_installation_id
+    - id
+    - name
+    - setup
+    set:
+      creator_id: x-hasura-User-pk
+  role: user
+select_permissions:
+- permission:
+    columns:
+    - name
+    filter:
+      _or:
+      - tests:
+          assignments:
+            candidate_id:
+              _eq: X-Hasura-User-pk
+      - tests:
+          assignments:
+            candidate_id:
+              _is_null: true
+  role: candidate
+- permission:
+    columns:
+    - created_at
+    - creator_id
+    - github_installation_id
+    - id
+    - name
+    - setup
+    - updated_at
+    filter:
+      business_users:
+        business_id:
+          _in: X-Hasura-Business-Ids
+  role: user
+update_permissions:
+- permission:
+    check: null
+    columns:
+    - github_installation_id
+    - name
+    - setup
+    filter:
+      business_users:
+        business_id:
+          _in: X-Hasura-Business-Ids
+  role: user

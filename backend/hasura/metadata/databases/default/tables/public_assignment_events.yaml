@@ -1,0 +1,74 @@
+table:
+  name: assignment_events
+  schema: public
+object_relationships:
+- name: assignment
+  using:
+    foreign_key_constraint_on: assignment_id
+- name: assignment_status
+  using:
+    foreign_key_constraint_on: event_type
+- name: user
+  using:
+    foreign_key_constraint_on: user_id
+insert_permissions:
+- permission:
+    backend_only: false
+    check:
+      user_id:
+        _eq: X-Hasura-User-pk
+    columns:
+    - assignment_id
+    - event_type
+    - meta
+    - user_id
+    set:
+      user_id: x-hasura-User-pk
+  role: candidate
+- permission:
+    backend_only: false
+    check:
+      _or:
+      - assignment:
+          recruiter_id:
+            _eq: X-Hasura-User-pk
+      - assignment:
+          test:
+            business_id:
+              _in: X-Hasura-Business-Ids
+    columns:
+    - assignment_id
+    - event_type
+    - meta
+    - user_id
+  role: user
+select_permissions:
+- permission:
+    columns:
+    - id
+    - user_id
+    - assignment_id
+    - meta
+    - event_type
+    - created_at
+    filter:
+      _or:
+      - assignment:
+          recruiter_id:
+            _eq: X-Hasura-User-pk
+      - assignment:
+          test:
+            business_id:
+              _in: X-Hasura-Business-Ids
+  role: user
+event_triggers:
+- definition:
+    enable_manual: false
+    insert:
+      columns: "*"
+  name: assignment_events
+  retry_conf:
+    interval_sec: 10
+    num_retries: 0
+    timeout_sec: 60
+  webhook: "{{BACKEND_URL}}/assignments/events"

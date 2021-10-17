@@ -1,0 +1,50 @@
+version: '3.6'
+services:
+  backend:
+    build:
+      context: .
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - graphql-engine
+    environment:
+      APP_URL: "localhost"
+      APP_ENV: "development"
+      MG_API_KEY: "key-4bae313b78a19562397e877c70eee126"
+      MG_URL: "https://api.mailgun.net/v3"
+      HASURA_URL: "http://graphql-engine"
+      MG_DOMAIN: "sandbox9044990ab6be4dfd8c254585ab26d0af.mailgun.org" # replace with your mailgun sandbox
+      HASURA_TOKEN: "myadminsecretkey"
+      GITHUB_ACCESS_TOKEN: ""  # replace with generated github access token
+      GITHUB_PRIVATE_KEY: "" # replace with generated github private key
+      GITHUB_APP_ID: "131386" # replace with github ap
+      ASSIGNMENT_SCHEDULER_ARN: "" # replace with scheduler arn
+      GOOGLE_SERVICE_ACC: "" #replace with firebase service account
+  postgres:
+    image: postgres:12
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+  graphql-engine:
+    image: hasura/graphql-engine:v2.0.9.cli-migrations-v3
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    volumes:
+      - ./hasura/migrations:/hasura-migrations
+      - ./hasura/metadata:/hasura-metadata
+    restart: always
+    environment:
+      BACKEND_URL: backend
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
+volumes:
+  db_data:

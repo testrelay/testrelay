@@ -1,0 +1,15 @@
+actions:
+- name: getBusinessRepos
+  definition:
+    kind: ""
+    handler: https://9tt4io7yf2.execute-api.eu-west-2.amazonaws.com/v1/github/repos
+    forward_client_headers: true
+  permissions:
+  - role: user
+custom_types:
+  enums: []
+  input_objects:
+  - name: BusinessInput
+  objects:
+  - name: BusinessRepos
+  scalars: []

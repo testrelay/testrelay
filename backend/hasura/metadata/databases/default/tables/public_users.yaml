@@ -1,0 +1,73 @@
+table:
+  name: users
+  schema: public
+array_relationships:
+- name: assignment_events
+  using:
+    foreign_key_constraint_on:
+      column: user_id
+      table:
+        name: assignment_events
+        schema: public
+- name: assignments
+  using:
+    foreign_key_constraint_on:
+      column: candidate_id
+      table:
+        name: assignments
+        schema: public
+- name: business_users
+  using:
+    foreign_key_constraint_on:
+      column: user_id
+      table:
+        name: business_users
+        schema: public
+- name: candidates
+  using:
+    foreign_key_constraint_on:
+      column: recruiter_id
+      table:
+        name: assignments
+        schema: public
+- name: reviews
+  using:
+    foreign_key_constraint_on:
+      column: user_id
+      table:
+        name: assignment_users
+        schema: public
+- name: tests
+  using:
+    foreign_key_constraint_on:
+      column: user_id
+      table:
+        name: tests
+        schema: public
+select_permissions:
+- permission:
+    columns:
+    - id
+    - email
+    - auth_id
+    - created_at
+    - updated_at
+    - github_username
+    - github_access_token
+    filter:
+      id:
+        _eq: X-Hasura-User-pk
+  role: candidate
+- permission:
+    columns:
+    - auth_id
+    - created_at
+    - email
+    - github_username
+    - id
+    - updated_at
+    filter:
+      business_users:
+        business_id:
+          _in: X-Hasura-Business-Ids
+  role: user

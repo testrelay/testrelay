@@ -1,0 +1,14 @@
+type Query {
+  getBusinessRepos(
+    arg1: BusinessInput!
+  ): BusinessRepos
+}
+
+input BusinessInput {
+  id: Int!
+}
+
+type BusinessRepos {
+  repos: [String]!
+}
+

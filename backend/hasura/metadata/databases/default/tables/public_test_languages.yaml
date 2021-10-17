@@ -1,0 +1,47 @@
+table:
+  name: test_languages
+  schema: public
+object_relationships:
+- name: language
+  using:
+    foreign_key_constraint_on: language_id
+- name: test
+  using:
+    foreign_key_constraint_on: test_id
+insert_permissions:
+- permission:
+    backend_only: false
+    check:
+      _or:
+      - test:
+          user_id:
+            _eq: X-Hasura-User-pk
+      - test:
+          business_id:
+            _in: X-Hasura-Business-Ids
+    columns:
+    - language_id
+    - test_id
+  role: user
+select_permissions:
+- permission:
+    columns:
+    - test_id
+    - language_id
+    - id
+    filter: {}
+  role: candidate
+- permission:
+    columns:
+    - test_id
+    - language_id
+    - id
+    filter:
+      _or:
+      - test:
+          user_id:
+            _eq: X-Hasura-User-pk
+      - test:
+          business_id:
+            _in: X-Hasura-Business-Ids
+  role: user
