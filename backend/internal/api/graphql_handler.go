@@ -89,6 +89,7 @@ func (h *GraphQLQueryHandler) Query(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"errors": ["bad request"] }`))
+		return
 	}
 
 	// if introspection let return the results now

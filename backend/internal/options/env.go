@@ -33,7 +33,7 @@ func ConfigFromEnv() (Config, error) {
 
 	c := Config{
 		AppURL:                 envOrDefaultString("APP_URL", "localhost"),
-		APPEnv:                envOrDefaultString("APP_ENV", "development"),
+		APPEnv:                 envOrDefaultString("APP_ENV", "development"),
 		MGDomain:               e.envOrError("MG_DOMAIN"),
 		MGAPIKey:               e.envOrError("MG_API_KEY"),
 		MGURL:                  e.envOrError("MG_URL"),
@@ -65,7 +65,7 @@ func (e errs) Error() error {
 	return errors.New(msg)
 }
 
-func (e *errs) envOrErrorInt(key string) int64  {
+func (e *errs) envOrErrorInt(key string) int64 {
 	v := e.envOrError(key)
 	if v == "" {
 		return 0

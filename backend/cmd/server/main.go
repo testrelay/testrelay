@@ -32,9 +32,10 @@ import (
 )
 
 var (
-	gh *api.GraphQLQueryHandler
-	ah eventsHttp.AssignmentHandler
-	rh eventsHttp.ReviewerHandler
+	gh     *api.GraphQLQueryHandler
+	ah     eventsHttp.AssignmentHandler
+	rh     eventsHttp.ReviewerHandler
+	logger *zap.SugaredLogger
 )
 
 func init() {
@@ -42,7 +43,7 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	logger := newLogger(config)
+	logger = newLogger(config)
 
 	hasuraClient := graphql.NewClient(config.HasuraURL, config.HasuraToken)
 	githubClient := vcs.NewClient(config.GithubAccessToken)
@@ -158,18 +159,31 @@ func main() {
 	flag.Parse()
 
 	r := mux.NewRouter()
+	r.Use(func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/healthz" {
+				logger.Info(r.URL.Path)
+			}
 
-	a := r.PathPrefix("assignments").Subrouter()
-	a.Methods(http.MethodPost).Path("events").HandlerFunc(ah.EventHandler)
-	a.Methods(http.MethodPost).Path("process").HandlerFunc(ah.ProcessHandler)
+			h.ServeHTTP(w, r)
+		})
+	})
 
-	re := r.PathPrefix("reviewers").Subrouter()
-	re.Methods(http.MethodPost).Path("events").HandlerFunc(rh.EventsHandler)
+	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	})
 
-	r.Methods(http.MethodPost).Path("graphql").HandlerFunc(gh.Query)
+	a := r.PathPrefix("/assignments").Subrouter()
+	a.Methods(http.MethodPost).Path("/events").HandlerFunc(ah.EventHandler)
+	a.Methods(http.MethodPost).Path("/process").HandlerFunc(ah.ProcessHandler)
+
+	re := r.PathPrefix("/reviewers").Subrouter()
+	re.Methods(http.MethodPost).Path("/events").HandlerFunc(rh.EventsHandler)
+
+	r.Methods(http.MethodPost).Path("/graphql").HandlerFunc(gh.Query)
 
 	srv := &http.Server{
-		Addr:         "0.0.0.0:8080",
+		Addr:         "0.0.0.0:8000",
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
@@ -177,6 +191,7 @@ func main() {
 	}
 
 	go func() {
+		log.Println("starting server")
 		if err := srv.ListenAndServe(); err != nil {
 			log.Println(err)
 		}
