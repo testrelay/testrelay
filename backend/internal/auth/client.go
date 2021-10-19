@@ -31,7 +31,7 @@ func (f FirebaseClient) GetUserByEmail(email string) (user.AuthInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	u, err := f.Auth.GetUserByEmail(ctx, email)
-	if err != nil && !errorutils.IsNotFound(err) {
+	if err != nil {
 		if errorutils.IsNotFound(err) {
 			return user.AuthInfo{}, user.ErrorNotFound
 		}

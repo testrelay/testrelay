@@ -12,9 +12,10 @@ type Config struct {
 	BackendURL string
 	APPEnv     string
 
-	MGDomain string
-	MGAPIKey string
-	MGURL    string
+	MGDomain       string
+	MGAPIKey       string
+	MGURL          string
+	MailFromDomain string
 
 	HasuraURL   string
 	HasuraToken string
@@ -36,6 +37,7 @@ func ConfigFromEnv() (Config, error) {
 		MGDomain:                     e.envOrError("MG_DOMAIN"),
 		MGAPIKey:                     e.envOrError("MG_API_KEY"),
 		MGURL:                        e.envOrError("MG_URL"),
+		MailFromDomain:               envOrDefaultString("MAIL_FROM_DOMAIN", "@testrelay.io"),
 		HasuraURL:                    envOrDefaultString("HASURA_URL", "hasura"),
 		HasuraToken:                  e.envOrError("HASURA_TOKEN"),
 		GithubAccessToken:            e.envOrError("GITHUB_ACCESS_TOKEN"),

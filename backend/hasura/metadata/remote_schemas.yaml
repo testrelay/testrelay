@@ -1,6 +1,6 @@
 - name: repos
   definition:
-    url: https://9tt4io7yf2.execute-api.eu-west-2.amazonaws.com/v1/github/graphql
+    url: http://backend-alb-1108022267.eu-west-2.elb.amazonaws.com/graphql
     timeout_seconds: 60
     forward_client_headers: true
   comment: ""

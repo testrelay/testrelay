@@ -70,7 +70,10 @@ func newMailer(config options.Config) *mail.MailgunMailer {
 	mg := mailgun.NewMailgun(config.MGDomain, config.MGAPIKey)
 	mg.SetAPIBase(config.MGURL)
 
-	return &mail.MailgunMailer{MG: mg}
+	return &mail.MailgunMailer{
+		MG:     mg,
+		Domain: config.MailFromDomain,
+	}
 }
 
 func newLogger(config options.Config) *zap.SugaredLogger {
