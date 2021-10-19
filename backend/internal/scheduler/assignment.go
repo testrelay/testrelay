@@ -1,52 +1,125 @@
 package scheduler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sfn"
-
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
+	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
-type SFNClient interface {
-	StartExecution(input *sfn.StartExecutionInput) (*sfn.StartExecutionOutput, error)
-	StopExecution(input *sfn.StopExecutionInput) (*sfn.StopExecutionOutput, error)
+type HasuraSchedulePayload struct {
+	Type string             `json:"type"`
+	Args HasuraScheduleData `json:"args"`
 }
 
-type StepFunctionAssignmentScheduler struct {
-	StateMachineArn string
-	SFNClient       SFNClient
+type HasuraScheduleData struct {
+	Webhook    string      `json:"webhook"`
+	ScheduleAt string      `json:"schedule_at"`
+	Payload    interface{} `json:"payload"`
+	Headers    []struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"headers"`
+	Comment string `json:"comment"`
 }
 
-func (s StepFunctionAssignmentScheduler) Stop(id string) error {
-	_, err := s.SFNClient.StopExecution(&sfn.StopExecutionInput{
-		ExecutionArn: aws.String(id),
-	})
+type StepPayload struct {
+	Step string      `json:"step"`
+	Data interface{} `json:"data"`
+}
+
+type HasuraAssignmentScheduler struct {
+	client     *http.Client
+	WebhookURL string
+	baseURL    string
+}
+
+func NewHasuraAssignmentScheduler(baseURL, token, webhookURL string) HasuraAssignmentScheduler {
+	return HasuraAssignmentScheduler{
+		client: &http.Client{
+			Transport: &httputil.KeyTransport{
+				Value: token,
+				Key:   "x-hasura-admin-secret",
+			},
+			Timeout: time.Second * 5,
+		},
+		WebhookURL: webhookURL,
+		baseURL:    baseURL,
+	}
+}
+
+func (h HasuraAssignmentScheduler) Stop(id string) error {
+	body := bytes.NewBufferString(fmt.Sprintf(`{
+    "type": "delete",
+    "args": {
+      "table": {
+        "name": "hdb_scheduled_events",
+        "schema": "hdb_catalog",
+      },
+      "where": {
+        "comment": {
+          "$eq": %q,
+        },
+      },
+    },
+  }`, id))
+
+	res, err := h.client.Post(
+		h.baseURL+"/v1/query",
+		"application/json",
+		body,
+	)
 	if err != nil {
-		return fmt.Errorf("could not start aws state machine with arn %s err %w", id, err)
+		return fmt.Errorf("could not post to %s %w", h.baseURL, err)
+	}
+
+	if res.StatusCode > 299 {
+		rb, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("non 200 status code for delete schedule: %s", rb)
 	}
 
 	return nil
 }
 
-func (s StepFunctionAssignmentScheduler) Start(input assignment.StartInput) (string, error) {
-	b, err := json.Marshal(input)
-	if err != nil {
-		return "", fmt.Errorf("could not marshal input %w", err)
+func (h HasuraAssignmentScheduler) Start(input assignment.StartInput) (string, error) {
+	id := fmt.Sprintf("assignment-%d-%s", input.ID, input.Type)
+
+	data := HasuraSchedulePayload{
+		Type: "create_scheduled_event",
+		Args: HasuraScheduleData{
+			Webhook:    h.WebhookURL + "/assignments/process",
+			ScheduleAt: input.ScheduleAt,
+			Payload: StepPayload{
+				Step: input.Type,
+				Data: input.Data,
+			},
+			Comment: id,
+		},
 	}
 
-	stateName := fmt.Sprintf("assignment-%d-%d", input.ID, time.Now().Unix())
-	out, err := s.SFNClient.StartExecution(&sfn.StartExecutionInput{
-		Input:           aws.String(string(b)),
-		Name:            aws.String(stateName),
-		StateMachineArn: aws.String(s.StateMachineArn),
-	})
+	b, err := json.Marshal(data)
 	if err != nil {
-		return "", fmt.Errorf("could not start step func execution arn %s %w", s.StateMachineArn, err)
+		return id, fmt.Errorf("could not marshal schedule event data %w", err)
 	}
 
-	return fmt.Sprintf("%p", out.ExecutionArn), nil
+	res, err := h.client.Post(
+		h.baseURL+"/v1/query",
+		"application/json",
+		bytes.NewBuffer(b),
+	)
+	if err != nil {
+		return id, fmt.Errorf("could not post to %s %w", h.baseURL, err)
+	}
+
+	if res.StatusCode > 299 {
+		rb, _ := io.ReadAll(res.Body)
+		return id, fmt.Errorf("non 200 status code for schedule body: %s", rb)
+	}
+
+	return id, nil
 }

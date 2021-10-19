@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	AppURL string
-	APPEnv string
+	AppURL     string
+	BackendURL string
+	APPEnv     string
 
 	MGDomain string
 	MGAPIKey string
@@ -18,33 +19,29 @@ type Config struct {
 	HasuraURL   string
 	HasuraToken string
 
-	GithubAccessToken string
-	GithubPrivateKey  string
-	GithubAppID       int64
+	GithubAccessToken        string
+	GithubPrivateKeyLocation string
+	GithubAppID              int64
 
-	AWSRegion              string
-	AssignmentSchedulerARN string
-
-	GoogleServiceAccount string
+	GoogleServiceAccountLocation string
 }
 
 func ConfigFromEnv() (Config, error) {
 	var e errs
 
 	c := Config{
-		AppURL:                 envOrDefaultString("APP_URL", "localhost"),
-		APPEnv:                 envOrDefaultString("APP_ENV", "development"),
-		MGDomain:               e.envOrError("MG_DOMAIN"),
-		MGAPIKey:               e.envOrError("MG_API_KEY"),
-		MGURL:                  e.envOrError("MG_URL"),
-		HasuraURL:              envOrDefaultString("HASURA_URL", "hasura"),
-		HasuraToken:            e.envOrError("HASURA_TOKEN"),
-		GithubAccessToken:      e.envOrError("GITHUB_ACCESS_TOKEN"),
-		GithubPrivateKey:       e.envOrError("GITHUB_PRIVATE_KEY"),
-		GithubAppID:            e.envOrErrorInt("GITHUB_APP_ID"),
-		AWSRegion:              envOrDefaultString("AWS_REGION", "eu-west-2"),
-		AssignmentSchedulerARN: e.envOrError("ASSIGNMENT_SCHEDULER_ARN"),
-		GoogleServiceAccount:   e.envOrError("GOOGLE_SERVICE_ACC"),
+		AppURL:                       envOrDefaultString("APP_URL", "localhost"),
+		BackendURL:                   envOrDefaultString("BACKEND_URL", "backend"),
+		APPEnv:                       envOrDefaultString("APP_ENV", "development"),
+		MGDomain:                     e.envOrError("MG_DOMAIN"),
+		MGAPIKey:                     e.envOrError("MG_API_KEY"),
+		MGURL:                        e.envOrError("MG_URL"),
+		HasuraURL:                    envOrDefaultString("HASURA_URL", "hasura"),
+		HasuraToken:                  e.envOrError("HASURA_TOKEN"),
+		GithubAccessToken:            e.envOrError("GITHUB_ACCESS_TOKEN"),
+		GithubPrivateKeyLocation:     e.envOrError("GITHUB_PRIVATE_KEY"),
+		GithubAppID:                  e.envOrErrorInt("GITHUB_APP_ID"),
+		GoogleServiceAccountLocation: e.envOrError("GOOGLE_SERVICE_ACC"),
 	}
 
 	return c, e.Error()

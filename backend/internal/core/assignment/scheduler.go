@@ -16,10 +16,12 @@ type UpdaterForScheduler interface {
 }
 
 type StartInput struct {
-	ID           int64       `json:"id"`
-	TestStart    string      `json:"testStart"`
-	TestDuration int         `json:"testDuration"`
-	Data         interface{} `json:"data"`
+	Type string
+
+	ID         int64       `json:"id"`
+	ScheduleAt string      `json:"schedule_at"`
+	Duration   int         `json:"duration"`
+	Data       interface{} `json:"data"`
 }
 
 type SchedulerClient interface {
@@ -40,8 +42,8 @@ func (s Scheduler) Start(assignmentID int) error {
 		return fmt.Errorf("could not fetch assignment id %d %w", assignmentID, err)
 	}
 
-	if assignment.StepArn != "" {
-		err := s.SchedulerClient.Stop(assignment.StepArn)
+	if assignment.SchedulerID != "" {
+		err := s.SchedulerClient.Stop(assignment.SchedulerID)
 		if err != nil {
 			return fmt.Errorf("could not stop previously scheduled assignment %w", err)
 		}
@@ -68,17 +70,18 @@ func (s Scheduler) Start(assignmentID int) error {
 		}
 	}
 
-	startID, err := s.SchedulerClient.Start(StartInput{
-		ID:           int64(assignment.ID),
-		TestStart:    t.SendNotificationAt,
-		TestDuration: int(assignment.TimeLimit) - 600,
-		Data:         assignment,
+	schedulerID, err := s.SchedulerClient.Start(StartInput{
+		Type:       "start",
+		ID:         int64(assignment.ID),
+		ScheduleAt: t.SendNotificationAt,
+		Duration:   int(assignment.TimeLimit) - 600,
+		Data:       assignment,
 	})
 	if err != nil {
 		return fmt.Errorf("could not schedule assignment to start %w", err)
 	}
 
-	err = s.Updater.UpdateAssignmentWithDetails(int(assignment.ID), startID, githubRepoURL)
+	err = s.Updater.UpdateAssignmentWithDetails(int(assignment.ID), schedulerID, githubRepoURL)
 	if err != nil {
 		return fmt.Errorf("could not update assignment with schedule details %w", err)
 	}

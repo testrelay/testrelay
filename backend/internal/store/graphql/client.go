@@ -55,7 +55,7 @@ type Assignment struct {
 	GithubRepoUrl      graphql.String `graphql:"github_repo_url" json:"github_repo_url"`
 	CandidateEmail     graphql.String `graphql:"candidate_email" json:"candidate_email"`
 	TestTimezoneChosen graphql.String `graphql:"test_timezone_chosen" json:"test_timezone_chosen"`
-	StepArn            graphql.String `graphql:"step_arn" json:"step_arn"`
+	SchedulerID        graphql.String `graphql:"step_arn" json:"step_arn"`
 	Candidate          Candidate      `graphql:"candidate" json:"candidate"`
 	Recruiter          Recruiter      `graphql:"recruiter" json:"recruiter"`
 	Test               Test           `graphql:"test" json:"test"`
@@ -159,7 +159,7 @@ func (h HasuraClient) GetAssignment(id int) (assignment.WithTestDetails, error) 
 		GithubRepoURL:      string(q.AssignmentsByPK.GithubRepoUrl),
 		CandidateEmail:     string(q.AssignmentsByPK.CandidateEmail),
 		TestTimezoneChosen: string(q.AssignmentsByPK.TestTimezoneChosen),
-		StepArn:            string(q.AssignmentsByPK.StepArn),
+		SchedulerID:        string(q.AssignmentsByPK.SchedulerID),
 		Candidate: assignment.Candidate{
 			Email:             string(q.AssignmentsByPK.Candidate.Email),
 			GithubUsername:    string(q.AssignmentsByPK.Candidate.GithubUsername),

@@ -22,7 +22,7 @@ type Full struct {
 	RecruiterId        int       `json:"recruiter_id"`
 	InviteCode         string    `json:"invite_code"`
 	GithubRepoURL      *string   `json:"github_repo_url"`
-	StepARN            *string   `json:"step_arn"`
+	SchedulerID        *string   `json:"step_arn"`
 	CandidateEmail     string    `json:"candidate_email"`
 	TestTimezoneChosen *string   `json:"test_timezone_chosen"`
 }
@@ -42,7 +42,7 @@ type WithTestDetails struct {
 	GithubRepoURL      string    `json:"github_repo_url"`
 	CandidateEmail     string    `json:"candidate_email"`
 	TestTimezoneChosen string    `json:"test_timezone_chosen"`
-	StepArn            string    `json:"step_arn"`
+	SchedulerID        string    `json:"step_arn"`
 	Candidate          Candidate `json:"candidate"`
 	Recruiter          Recruiter `json:"recruiter"`
 	Test               Test      `json:"test"`

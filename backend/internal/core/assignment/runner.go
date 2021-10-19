@@ -18,11 +18,13 @@ type ReviewerCollector interface {
 }
 
 type RunData struct {
-	ID           int             `json:"id"`
-	TestStart    time.Time       `json:"testStart"`
-	TestDuration int             `json:"testDuration"`
-	Data         WithTestDetails `json:"data"`
+	ID         int             `json:"id"`
+	ScheduleAt time.Time       `json:"schedule_at"`
+	Duration   int             `json:"duration"`
+	Data       WithTestDetails `json:"data"`
 }
+
+type Time func() time.Time
 
 type Runner struct {
 	Uploader          core.VCSUploader
@@ -32,6 +34,11 @@ type Runner struct {
 	EventCreator      EventCreator
 	Mailer            core.Mailer
 	Logger            *zap.SugaredLogger
+	SchedulerClient   SchedulerClient
+	Time              Time
+
+	StartDelay       time.Duration
+	WarningBeforeEnd time.Duration
 }
 
 func (r Runner) Run(step string, data RunData) error {
@@ -100,6 +107,17 @@ func (r Runner) end(assignment WithTestDetails) error {
 	if err != nil {
 		return fmt.Errorf("could not send finish email to candidate %s %w", assignment.CandidateEmail, err)
 	}
+
+	_, err = r.SchedulerClient.Start(StartInput{
+		Type:       "cleanup",
+		ID:         int64(assignment.ID),
+		ScheduleAt: r.Time().Add(r.WarningBeforeEnd).Format(time.RFC3339),
+		Data:       assignment,
+	})
+	if err != nil {
+		return fmt.Errorf("could not schedule assignment to cleanup %w", err)
+	}
+
 	return nil
 }
 
@@ -117,6 +135,17 @@ func (r Runner) init(assignment WithTestDetails) error {
 	if err != nil {
 		return fmt.Errorf("could not insert event 'inprogress' %w", err)
 	}
+
+	_, err = r.SchedulerClient.Start(StartInput{
+		Type:       "end",
+		ID:         int64(assignment.ID),
+		ScheduleAt: r.Time().Add(-r.WarningBeforeEnd).Add(time.Second * time.Duration(assignment.TimeLimit)).Format(time.RFC3339),
+		Data:       assignment,
+	})
+	if err != nil {
+		return fmt.Errorf("could not schedule assignment to end %w", err)
+	}
+
 	return nil
 }
 
@@ -129,6 +158,16 @@ func (r Runner) start(assignment WithTestDetails) error {
 	}, assignment)
 	if err != nil {
 		return fmt.Errorf("could not send reminder email to candidate %s %w", assignment.CandidateEmail, err)
+	}
+
+	_, err = r.SchedulerClient.Start(StartInput{
+		Type:       "init",
+		ID:         int64(assignment.ID),
+		ScheduleAt: r.Time().Add(r.StartDelay).Format(time.RFC3339),
+		Data:       assignment,
+	})
+	if err != nil {
+		return fmt.Errorf("could not schedule assignment to init %w", err)
 	}
 
 	return nil

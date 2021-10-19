@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
+	"os"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/github"
@@ -21,11 +21,14 @@ type GithubRepoCollector struct {
 }
 
 func NewGithubRepoCollector(privateKey string, appID int64) (GithubRepoCollector, error) {
-	privateKey = strings.ReplaceAll(privateKey, `\n`, "\n")
+	b, err := os.ReadFile(privateKey)
+	if err != nil {
+		return GithubRepoCollector{}, fmt.Errorf("could not read github priv key file %w", err)
+	}
 
 	return GithubRepoCollector{
 		GithubAppID: appID,
-		GithubPK:    []byte(privateKey),
+		GithubPK:    b,
 	}, nil
 }
 

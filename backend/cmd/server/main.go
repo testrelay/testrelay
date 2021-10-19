@@ -11,9 +11,6 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	firebaseAuth "firebase.google.com/go/v4/auth"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/gorilla/mux"
 	"github.com/mailgun/mailgun-go/v4"
 	"go.uber.org/zap"
@@ -31,79 +28,11 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
-var (
-	gh     *api.GraphQLQueryHandler
-	ah     eventsHttp.AssignmentHandler
-	rh     eventsHttp.ReviewerHandler
-	logger *zap.SugaredLogger
-)
-
-func init() {
-	config, err := options.ConfigFromEnv()
-	if err != nil {
-		log.Fatal(err)
-	}
-	logger = newLogger(config)
-
-	hasuraClient := graphql.NewClient(config.HasuraURL, config.HasuraToken)
-	githubClient := vcs.NewClient(config.GithubAccessToken)
-
-	mailer := newMailer(config)
-
-	ah = eventsHttp.AssignmentHandler{
-		HasuraClient: hasuraClient,
-		GithubClient: githubClient,
-		Inviter: assignment.Inviter{
-			BusinessRepo:   hasuraClient,
-			Mailer:         mailer,
-			AssignmentRepo: hasuraClient,
-			UserRepo:       hasuraClient,
-			Auth: auth.FirebaseClient{
-				Auth:            newFirebaseAuth(config),
-				CustomClaimName: "https://hasura.io/jwt/claims",
-			},
-			AppURL: config.AppURL,
-		},
-		Logger: logger,
-		Runner: assignment.Runner{
-			Uploader:          githubClient,
-			Cleaner:           githubClient,
-			SubmissionChecker: githubClient,
-			ReviewerCollector: hasuraClient,
-			EventCreator:      hasuraClient,
-			Mailer:            mailer,
-			Logger:            logger,
-		},
-		Scheduler: assignment.Scheduler{
-			Fetcher: hasuraClient,
-			SchedulerClient: scheduler.StepFunctionAssignmentScheduler{
-				StateMachineArn: config.AssignmentSchedulerARN,
-				SFNClient: sfn.New(session.Must(session.NewSession(&aws.Config{
-					Region: aws.String(config.AWSRegion),
-				})), &aws.Config{Region: aws.String(config.AWSRegion)}),
-			},
-			VCSCreator: githubClient,
-			Updater:    hasuraClient,
-		},
-	}
-
-	rh = eventsHttp.ReviewerHandler{
-		Logger: logger,
-		Assigner: assignmentuser.Assigner{
-			ReviewerRepository: hasuraClient,
-			VCSClient:          githubClient,
-			Mailer:             mailer,
-		},
-	}
-
-	gh = newGraphQLQueryHandler(config)
-}
-
 func newFirebaseAuth(config options.Config) *firebaseAuth.Client {
 	app, err := firebase.NewApp(
 		context.Background(),
 		nil,
-		option.WithCredentialsJSON([]byte(config.GoogleServiceAccount)),
+		option.WithCredentialsFile(config.GoogleServiceAccountLocation),
 	)
 	if err != nil {
 		log.Fatalf("error initializing firebase app: %v", err)
@@ -118,7 +47,7 @@ func newFirebaseAuth(config options.Config) *firebaseAuth.Client {
 }
 
 func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
-	collector, err := vcs.NewGithubRepoCollector(config.GithubPrivateKey, config.GithubAppID)
+	collector, err := vcs.NewGithubRepoCollector(config.GithubPrivateKeyLocation, config.GithubAppID)
 	if err != nil {
 		log.Fatalf("could not init github repository collector %s", err)
 	}
@@ -153,7 +82,70 @@ func newLogger(config options.Config) *zap.SugaredLogger {
 	return logger
 }
 
-func main() {
+func run() {
+	config, err := options.ConfigFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := newLogger(config)
+
+	hasuraClient := graphql.NewClient(config.HasuraURL, config.HasuraToken)
+	githubClient := vcs.NewClient(config.GithubAccessToken)
+
+	mailer := newMailer(config)
+
+	scheduleClient := scheduler.NewHasuraAssignmentScheduler(
+		config.HasuraURL,
+		config.HasuraToken,
+		config.BackendURL,
+	)
+	ah := eventsHttp.AssignmentHandler{
+		HasuraClient: hasuraClient,
+		GithubClient: githubClient,
+		Inviter: assignment.Inviter{
+			BusinessRepo:   hasuraClient,
+			Mailer:         mailer,
+			AssignmentRepo: hasuraClient,
+			UserRepo:       hasuraClient,
+			Auth: auth.FirebaseClient{
+				Auth:            newFirebaseAuth(config),
+				CustomClaimName: "https://hasura.io/jwt/claims",
+			},
+			AppURL: config.AppURL,
+		},
+		Logger: logger,
+		Runner: assignment.Runner{
+			Uploader:          githubClient,
+			Cleaner:           githubClient,
+			SubmissionChecker: githubClient,
+			ReviewerCollector: hasuraClient,
+			EventCreator:      hasuraClient,
+			Mailer:            mailer,
+			Logger:            logger,
+			SchedulerClient:   scheduleClient,
+			Time:              time.Now,
+			StartDelay:        time.Minute * 5,
+			WarningBeforeEnd:  time.Minute * 10,
+		},
+		Scheduler: assignment.Scheduler{
+			Fetcher:         hasuraClient,
+			SchedulerClient: scheduleClient,
+			VCSCreator:      githubClient,
+			Updater:         hasuraClient,
+		},
+	}
+
+	rh := eventsHttp.ReviewerHandler{
+		Logger: logger,
+		Assigner: assignmentuser.Assigner{
+			ReviewerRepository: hasuraClient,
+			VCSClient:          githubClient,
+			Mailer:             mailer,
+		},
+	}
+
+	gh := newGraphQLQueryHandler(config)
+
 	var wait time.Duration
 	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	flag.Parse()
@@ -207,4 +199,8 @@ func main() {
 	srv.Shutdown(ctx)
 	log.Println("shutting down")
 	os.Exit(0)
+}
+
+func main() {
+	run()
 }
