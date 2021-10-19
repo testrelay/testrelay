@@ -19,7 +19,6 @@ services:
       GITHUB_ACCESS_TOKEN: ""  # replace with generated github access token
       GITHUB_PRIVATE_KEY: "" # replace with generated github private key
       GITHUB_APP_ID: "131386" # replace with github ap
-      ASSIGNMENT_SCHEDULER_ARN: "" # replace with scheduler arn
       GOOGLE_SERVICE_ACC: "" #replace with firebase service account
   postgres:
     image: postgres:12
