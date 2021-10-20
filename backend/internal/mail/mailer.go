@@ -2,12 +2,10 @@ package mail
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"html/template"
-	"time"
 
-	"github.com/mailgun/mailgun-go/v4"
+	mail "github.com/xhit/go-simple-mail/v2"
 
 	"github.com/testrelay/testrelay/backend/internal/core"
 )
@@ -128,38 +126,7 @@ type t struct {
 	html  string
 }
 
-type MailgunMailer struct {
-	MG     *mailgun.MailgunImpl
-	Domain string
-}
-
-func (m *MailgunMailer) Send(config core.MailConfig, data interface{}) error {
-	plain, html, err := m.buildTemplates(config.TemplateName, data)
-	if err != nil {
-		return fmt.Errorf("could not build templates for test %s %w", config.TemplateName, err)
-	}
-
-	from := "info@" + m.Domain
-	if config.From != "" {
-		from = config.From + m.Domain
-	}
-
-	message := m.MG.NewMessage(
-		from,
-		config.Subject,
-		plain.String(),
-		config.To,
-	)
-	message.SetHtml(html.String())
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	_, _, err = m.MG.Send(ctx, message)
-	return err
-}
-
-func (m *MailgunMailer) buildTemplates(name string, data interface{}) (*bytes.Buffer, *bytes.Buffer, error) {
+func buildTemplates(name string, data interface{}) (*bytes.Buffer, *bytes.Buffer, error) {
 	t := template.New("plain")
 	t, _ = t.Parse(templates[name].plain)
 
@@ -181,22 +148,46 @@ func (m *MailgunMailer) buildTemplates(name string, data interface{}) (*bytes.Bu
 	return plain, html, nil
 }
 
-func chooseUntil(until string) string {
-	t, _ := time.Parse("2006-01-02", until)
-	return t.Format("Mon, 02 Jan 2006")
+type SMTPMailer struct {
+	client *mail.SMTPClient
+	Domain string
 }
 
-func testTime(limit int) string {
-	hours := limit / (60 * 60)
+func NewSMTPMailer(config core.SMTPConfig) (SMTPMailer, error) {
+	server := mail.NewSMTPClient()
 
-	if hours == 1 {
-		return fmt.Sprintf("%d hour", hours)
+	server.Host = config.Host
+	server.Port = config.Port
+	server.Username = config.Username
+	server.Password = config.Password
+
+	smtpClient, err := server.Connect()
+	if err != nil {
+		return SMTPMailer{}, fmt.Errorf("could not connect to smtp server %w", err)
 	}
 
-	if hours <= 24 {
-		return fmt.Sprintf("%d hours", hours)
+	return SMTPMailer{
+		client: smtpClient,
+		Domain: config.SendingDomain,
+	}, nil
+}
+
+func (s SMTPMailer) Send(config core.MailConfig, data interface{}) error {
+	_, html, err := buildTemplates(config.TemplateName, data)
+	if err != nil {
+		return fmt.Errorf("could not build templates for test %s %w", config.TemplateName, err)
 	}
 
-	days := hours / 24
-	return fmt.Sprintf("%d days", days)
+	from := "info@" + s.Domain
+	if config.From != "" {
+		from = config.From + s.Domain
+	}
+
+	email := mail.NewMSG()
+	email.SetFrom(from).
+		AddTo(config.To).
+		SetSubject(config.Subject).
+		SetBody(mail.TextHTML, html.String())
+
+	return email.Send(s.client)
 }

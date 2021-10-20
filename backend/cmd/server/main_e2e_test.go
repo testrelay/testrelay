@@ -51,7 +51,7 @@ type graphQLClient struct {
 	baseURL string
 }
 
-func (c graphQLClient) do(query string, variables map[string]interface{}, v interface{}) error {
+func (c graphQLClient) do(query string, variables map[string]interface{}, v interface{}) (string, error) {
 	in := struct {
 		Query     string                 `json:"query"`
 		Variables map[string]interface{} `json:"variables,omitempty"`
@@ -63,18 +63,18 @@ func (c graphQLClient) do(query string, variables map[string]interface{}, v inte
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(in)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := c.client.Post(c.baseURL, "application/json", &buf)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("non-200 OK status code: %v body: %q", resp.Status, body)
+		return "", fmt.Errorf("non-200 OK status code: %v body: %q", resp.Status, body)
 	}
 	var out struct {
 		Data   *json.RawMessage
@@ -84,21 +84,22 @@ func (c graphQLClient) do(query string, variables map[string]interface{}, v inte
 	body, _ := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(body, &out)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if out.Data != nil {
 		err := json.Unmarshal(*out.Data, &v)
 		if err != nil {
-			return err
+			return string(body), err
 		}
 	}
 
 	if len(out.Errors) > 0 {
-		return out.Errors
+		b, _ := json.Marshal(out.Errors)
+		return string(b), out.Errors
 	}
 
-	return nil
+	return string(body), nil
 }
 
 var (
@@ -143,7 +144,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func initFirebaseAuth(){
+func initFirebaseAuth() {
 	app, err := firebase.NewApp(
 		context.Background(),
 		nil,

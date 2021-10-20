@@ -12,12 +12,12 @@ import (
 	firebase "firebase.google.com/go/v4"
 	firebaseAuth "firebase.google.com/go/v4/auth"
 	"github.com/gorilla/mux"
-	"github.com/mailgun/mailgun-go/v4"
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
 	"github.com/testrelay/testrelay/backend/internal/api"
 	"github.com/testrelay/testrelay/backend/internal/auth"
+	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
 	eventsHttp "github.com/testrelay/testrelay/backend/internal/events/http"
@@ -66,14 +66,19 @@ func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
 	return gh
 }
 
-func newMailer(config options.Config) *mail.MailgunMailer {
-	mg := mailgun.NewMailgun(config.MGDomain, config.MGAPIKey)
-	mg.SetAPIBase(config.MGURL)
-
-	return &mail.MailgunMailer{
-		MG:     mg,
-		Domain: config.MailFromDomain,
+func newMailer(config options.Config) mail.SMTPMailer {
+	m, err := mail.NewSMTPMailer(core.SMTPConfig{
+		SendingDomain: config.MailFromDomain,
+		Host:          config.SMTPHost,
+		Port:          int(config.SMTPPort),
+		Username:      config.SMTPUsername,
+		Password:      config.SMTPPassword,
+	})
+	if err != nil {
+		log.Fatalf("could not init mailer %s", err)
 	}
+
+	return m
 }
 
 func newLogger(config options.Config) *zap.SugaredLogger {
