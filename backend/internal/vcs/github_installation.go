@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v39/github"
 )
 
 type Repo struct {
@@ -51,8 +51,8 @@ func (g GithubRepoCollector) CollectRepos(installationID int64) ([]Repo, error) 
 		return nil, fmt.Errorf("failed to list repos %w", err)
 	}
 
-	var qrepos = make([]Repo, len(repos))
-	for i, repo := range repos {
+	var qrepos = make([]Repo, len(repos.Repositories))
+	for i, repo := range repos.Repositories {
 		qrepos[i] = Repo{
 			ID:       *repo.ID,
 			FullName: *repo.FullName,
