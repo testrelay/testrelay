@@ -26,9 +26,9 @@ When choosing your preferred date/time to sit the test, you'll be prompted to si
 Good luck and feel free to reply to this email if you have any technical problems scheduling your technical test.
 - the TestRelay candidate team
 `
-	candidateInviteHtml = `<html><body><h1>Hello %s,</h1>
-<p>%s has invited you to take a technical test.<p>
-<p><a href="%s">Click here</a> to schedule your assignment. The test is <b>%s</b> in length and you have until <b>%s</b> to take the test.</p>
+	candidateInviteHtml = `<html><body><h1>Hello {{ .Assignment.CandidateName }},</h1>
+<p>{{ .BusinessName }} has invited you to take a technical test.<p>
+<p><a href="{{.EmailLink}}">Click here</a> to schedule your assignment. The test is <b>{{ .Assignment.TimeLimitReadable }}</b> in length and you have until <b>{{.Assignment.ChooseReadable}}</b> to take the test.</p>
 <p>When choosing your preferred date/time to sit the test, you'll be prompted to sign in with github. This is so that we can invite you to a private repo where you'll take the test.</p>
 <p>Good luck and feel free to reply to this email if you have any technical problems scheduling your technical test.</p>
 <p><em>- the TestRelay candidate team</em></p></body></html>

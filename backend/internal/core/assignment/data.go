@@ -1,6 +1,9 @@
 package assignment
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Short struct {
 	CandidateName string
@@ -25,6 +28,27 @@ type Full struct {
 	SchedulerID        *string   `json:"step_arn"`
 	CandidateEmail     string    `json:"candidate_email"`
 	TestTimezoneChosen *string   `json:"test_timezone_chosen"`
+}
+
+func (f Full) ChooseReadable() string {
+	t, _ := time.Parse("2006-01-02", f.ChooseUntil)
+	return t.Format("Mon 01 January")
+}
+
+func (f Full) TimeLimitReadable() string {
+	hours := f.TimeLimit / 3600
+
+	if hours > 25 {
+		days := hours / 24
+
+		return fmt.Sprintf("%d days", days)
+	}
+
+	if hours > 1 {
+		return fmt.Sprintf("%d hours", hours)
+	}
+
+	return "1 hour"
 }
 
 type WithTestDetails struct {

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
@@ -87,7 +89,7 @@ func (c graphQLClient) do(query string, variables map[string]interface{}, v inte
 		return "", err
 	}
 
-	if out.Data != nil {
+	if out.Data != nil && v != nil {
 		err := json.Unmarshal(*out.Data, &v)
 		if err != nil {
 			return string(body), err
@@ -100,6 +102,27 @@ func (c graphQLClient) do(query string, variables map[string]interface{}, v inte
 	}
 
 	return string(body), nil
+}
+
+type testRunner struct {
+	t       *testing.T
+	cleanup []func() error
+	mu      *sync.Mutex
+}
+
+func (tr *testRunner) addCleanupStep(c func() error) {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+
+	tr.cleanup = append(tr.cleanup, c)
+}
+
+func (tr *testRunner) clean() {
+	tr.t.Helper()
+
+	for _, f := range tr.cleanup {
+		assert.NoError(tr.t, f())
+	}
 }
 
 var (

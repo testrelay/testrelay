@@ -29,8 +29,9 @@ type AuthRepo interface {
 }
 
 type CandidateEmailData struct {
-	EmailLink  string
-	Assignment Full
+	EmailLink    string
+	BusinessName string
+	Assignment   Full
 }
 
 type Inviter struct {
@@ -82,8 +83,9 @@ func (i Inviter) Invite(data Full) error {
 		From:         "candidates",
 		To:           candidate.Email,
 	}, CandidateEmailData{
-		EmailLink:  link,
-		Assignment: data,
+		EmailLink:    link,
+		BusinessName: b.Name,
+		Assignment:   data,
 	})
 	if err != nil {
 		return fmt.Errorf("couldn't send candidate email %w", err)
@@ -118,9 +120,9 @@ func (i Inviter) createUser(data Full, businessID int64) (user.AuthInfo, error) 
 	}
 
 	err = i.Auth.SetCustomUserClaims(user.AuthClaims{
-		ID:          u.ID,
-		AuthUID:     candidate.UID,
-		BusinessIDs: []int64{businessID},
+		ID:           u.ID,
+		AuthUID:      candidate.UID,
+		Interviewing: []int64{businessID},
 	})
 	if err != nil {
 		return candidate, fmt.Errorf("could not create custom claims for user %w", err)

@@ -14,8 +14,8 @@ require (
 	github.com/hasura/go-graphql-client v0.3.0
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.3
-	github.com/mailgun/mailgun-go/v4 v4.5.3
 	github.com/stretchr/testify v1.7.0
+	github.com/xhit/go-simple-mail/v2 v2.10.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 	google.golang.org/api v0.40.0
@@ -46,13 +46,9 @@ require (
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
 	github.com/klauspost/compress v1.10.3 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
-	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
-	github.com/xhit/go-simple-mail/v2 v2.10.0 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
