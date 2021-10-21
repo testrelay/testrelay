@@ -255,6 +255,22 @@ func TestAssignments(t *testing.T) {
 		})
 
 		t.Run("insert assignment_events event", func(t *testing.T) {
+			tr := &testRunner{mu: &sync.Mutex{}, t: t}
+			defer tr.clean()
+
+			// setup
+			testRepo := generateTestRepository(tr)
+			fbRecruiter := createRecruiterFirebaseUser(tr)
+			trBusinessWithUser := createRecruiterAndBusiness(tr, fbRecruiter)
+
+			//insert assignment which triggers events
+			res := insertAssignment(tr, testRepo, trBusinessWithUser)
+			assertEmailSent(tr, res, trBusinessWithUser)
+
+			//insertAssignmentScheduledEvent(tr, res)
+			//assertGithubRepoCreated()
+			//assertEmailScheduledSent()
+
 		})
 	})
 
