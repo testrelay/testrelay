@@ -31,6 +31,11 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
+var (
+	testUserGithubUsername = "hugorut"
+	githubTestOwner        = "the-foreman"
+)
+
 type graphErrors []struct {
 	Message   string
 	Locations []struct {
@@ -196,7 +201,7 @@ func initGithubClient() {
 
 func initHasuraClient() {
 	hasuraClient = graphQLClient{
-		baseURL: os.Getenv("HASURA_URL"),
+		baseURL: os.Getenv("HASURA_URL") + "/v1/graphql",
 		client: &http.Client{
 			Transport: &httputil.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
 		},

@@ -263,14 +263,19 @@ func TestAssignments(t *testing.T) {
 			fbRecruiter := createRecruiterFirebaseUser(tr)
 			trBusinessWithUser := createRecruiterAndBusiness(tr, fbRecruiter)
 
-			//insert assignment which triggers events
 			res := insertAssignment(tr, testRepo, trBusinessWithUser)
+
+			// assert the invite email sent which adds the candidate e.t.c
 			assertEmailSent(tr, res, trBusinessWithUser)
 
-			//insertAssignmentScheduledEvent(tr, res)
-			//assertGithubRepoCreated()
-			//assertEmailScheduledSent()
+			candidate := updateInsertedCandidateWithGithubUsername(tr, res)
+			now := time.Now()
+			updateAssignmentWithTimeChosen(tr, res, now.Format("15:04"), now.AddDate(0, 0, 4).Format("2006-01-02"))
+			insertAssignmentEvent(tr, res, candidate, "scheduled")
 
+			assignmentDetails := waitForAssignmentDetails(tr, res)
+			assertGithubRepoCreated(tr, assignmentDetails, trBusinessWithUser)
+			assertEventScheduled(tr, assignmentDetails)
 		})
 	})
 
@@ -279,6 +284,176 @@ func TestAssignments(t *testing.T) {
 
 		})
 	})
+}
+
+func assertEventScheduled(tr *testRunner, details assignmentTestDetailsData) {
+	// todo
+}
+
+func assertGithubRepoCreated(tr *testRunner, details assignmentTestDetailsData, user insertUserWithBusinessMuData) {
+	r, _, err := githubClient.Repositories.Get(
+		context.Background(),
+		githubTestOwner,
+		strings.ToLower(fmt.Sprintf("%s-%s-test-%d", testUserGithubUsername, user.Insert.Name, details.AssignmentsByPK.ID)),
+	)
+	require.NoError(tr.t, err)
+
+	owner := r.GetOwner().GetLogin()
+	repoName := r.GetName()
+	tr.addCleanupStep(func() error {
+		_, err := githubClient.Repositories.Delete(context.Background(), owner, repoName)
+		return err
+	})
+
+	invites, _, err := githubClient.Repositories.ListInvitations(context.Background(), owner, repoName, nil)
+	require.NoError(tr.t, err)
+
+	var found bool
+	for _, u := range invites {
+		if u.Invitee.GetLogin() == testUserGithubUsername {
+			found = true
+			break
+		}
+	}
+
+	assert.True(tr.t, found, "could not find test user %s as invitee on generated repo %+v", testUserGithubUsername, invites)
+}
+
+func assertHasCommits(tr *testRunner, owner string, repoName string) {
+	commits, _, err := githubClient.Repositories.ListCommits(context.Background(), owner, repoName, nil)
+	require.NoError(tr.t, err)
+	require.Len(tr.t, commits, 1)
+
+	c := commits[0].GetCommit()
+	assert.Equal(tr.t, "start test", c.GetMessage())
+
+	tree := c.GetTree()
+	assert.Len(tr.t, tree.Entries, 2)
+
+	filenames := make([]string, 0, 2)
+	for _, e := range tree.Entries {
+		if e != nil {
+			filenames = append(filenames, e.GetPath())
+		}
+	}
+
+	assert.Contains(tr.t, filenames, "test/index.txt")
+	assert.Contains(tr.t, filenames, "test.txt")
+}
+
+var fetchAssignmentTestDetails = `
+query ($id: Int!) {
+  assignments_by_pk(id: $id) {
+	id
+    github_repo_url
+    step_arn
+  }
+}
+`
+
+type assignmentTestDetailsData struct {
+	AssignmentsByPK struct {
+		ID            int    `json:"id"`
+		GithubRepoURL string `json:"github_repo_url"`
+		StepARN       string `json:"step_arn"`
+	} `json:"assignments_by_pk"`
+}
+
+func assertAssignmentUpdatedWithRepoDetails(tr *testRunner, res insertAssignmentMuData) assignmentTestDetailsData {
+	var d assignmentTestDetailsData
+	_, err := hasuraClient.do(fetchAssignmentTestDetails, map[string]interface{}{
+		"id": res.Insert.ID,
+	}, &d)
+	require.NoError(tr.t, err)
+
+	return d
+}
+
+func waitForAssignmentDetails(tr *testRunner, res insertAssignmentMuData) assignmentTestDetailsData {
+	for i := 0; i < 5; i++ {
+		d := assertAssignmentUpdatedWithRepoDetails(tr, res)
+		if d.AssignmentsByPK.GithubRepoURL != "" && d.AssignmentsByPK.StepARN != "" {
+			return d
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	tr.t.Fatalf("could not find updated repo details for assignment %d", res.Insert.ID)
+	return assignmentTestDetailsData{}
+}
+
+var updateAssignmentWithTimeMu = `
+mutation ($id: Int!, $test_time_chosen: time!, $test_timezone_chosen: String!, $test_day_chosen: date!) {
+  update_assignments_by_pk(pk_columns: {id: $id}, _set: {test_time_chosen: $test_time_chosen, test_timezone_chosen: $test_timezone_chosen, test_day_chosen: $test_day_chosen}) {
+    id
+  }
+}
+`
+
+func updateAssignmentWithTimeChosen(tr *testRunner, res insertAssignmentMuData, timeChosen string, dayChosen string) {
+	_, err := hasuraClient.do(updateAssignmentWithTimeMu, map[string]interface{}{
+		"id":                   res.Insert.ID,
+		"test_time_chosen":     timeChosen,
+		"test_day_chosen":      dayChosen,
+		"test_timezone_chosen": "Europe/London",
+	}, nil)
+	require.NoError(tr.t, err)
+}
+
+var insertAssignmentEventMu = `
+mutation InsertAssignmentEvent($assignment_id: Int!, $user_id: Int!, $event_type: assignment_status_enum!) {
+  insert_assignment_events_one(object: {assignment_id: $assignment_id, user_id: $user_id, event_type: $event_type}) {
+    id
+  }
+}
+`
+
+func insertAssignmentEvent(tr *testRunner, res insertAssignmentMuData, candidate userQueryData, eventType string) {
+	_, err := hasuraClient.do(insertAssignmentEventMu, map[string]interface{}{
+		"assignment_id": res.Insert.ID,
+		"user_id":       candidate.ID,
+		"event_type":    eventType,
+	}, nil)
+	require.NoError(tr.t, err)
+}
+
+var updateUserWithGithubUsername = `
+mutation ($email: String!, $github_username: String!) {
+  update_users(where: {email: {_eq: $email}}, _set: {github_username: $github_username}) {
+    returning {
+      id
+      email
+      auth_id
+    }
+  }
+}
+
+`
+
+type userUpdateData struct {
+	UpdateUsers struct {
+		Returning []userQueryData `json:"returning"`
+	} `json:"update_users"`
+}
+
+type userQueryData struct {
+	ID     int    `json:"id"`
+	AuthID string `json:"auth_id"`
+	Email  string `json:"email"`
+}
+
+func updateInsertedCandidateWithGithubUsername(tr *testRunner, a insertAssignmentMuData) userQueryData {
+	var d userUpdateData
+
+	_, err := hasuraClient.do(updateUserWithGithubUsername, map[string]interface{}{
+		"email":           strings.ToLower(a.Insert.CandidateEmail),
+		"github_username": strings.ToLower(testUserGithubUsername),
+	}, &d)
+	require.NoError(tr.t, err)
+	require.Len(tr.t, d.UpdateUsers.Returning, 1)
+
+	return d.UpdateUsers.Returning[0]
 }
 
 func assertCandidateClaims(tr *testRunner, trBusinessWithUser insertUserWithBusinessMuData, cRec *auth.UserRecord, vad validateAssignmentQueryData) bool {
@@ -359,10 +534,10 @@ func assertAssignmentUpdated(tr *testRunner, cRec *auth.UserRecord, res insertAs
 func insertAssignment(tr *testRunner, testRepo *github.Repository, trBusinessWithUser insertUserWithBusinessMuData) insertAssignmentMuData {
 	candidateEmail := faker.Email()
 	v := insertAssignmentVars{
-		TestGithubRepo: testRepo.GetCloneURL(),
-		Email:          candidateEmail,
-		BusinessID:     trBusinessWithUser.Insert.ID,
 		RecruiterID:    trBusinessWithUser.Insert.Creator.ID,
+		BusinessID:     trBusinessWithUser.Insert.ID,
+		Email:          candidateEmail,
+		TestGithubRepo: testRepo.GetCloneURL(),
 	}
 
 	var res insertAssignmentMuData

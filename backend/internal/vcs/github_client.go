@@ -48,8 +48,8 @@ func NewClient(accessToken string) *GithubClient {
 	}
 }
 
-func (c GithubClient) CreateRepo(bName, username string) (string, error) {
-	name := makeRepoName(bName, username)
+func (c GithubClient) CreateRepo(bName, username string, id int) (string, error) {
+	name := makeRepoName(bName, username, id)
 	r := &github.Repository{
 		Name:         github.String(name),
 		Private:      github.Bool(true),
@@ -119,12 +119,19 @@ func (c GithubClient) addCollaborator(login string, repoName string, username st
 	return fmt.Errorf("could not add %s to generated repository %s %w", username, repoName, err)
 }
 
-func makeRepoName(bName, username string) string {
+var space = regexp.MustCompile("/s+")
+
+func makeRepoName(bName, username string, id int) string {
 	rand.Seed(time.Now().UnixNano())
 
-	space := regexp.MustCompile("/s+")
-
-	return username + "-" + space.ReplaceAllString(bName, "-") + "-test-" + randSeq(4)
+	return strings.ToLower(
+		fmt.Sprintf(
+			"%s-%s-test-%d",
+			username,
+			space.ReplaceAllString(bName, "-"),
+			id,
+		),
+	)
 }
 
 func randSeq(n int) string {

@@ -30,5 +30,5 @@ type VCSSubmissionChecker interface {
 }
 
 type VCSCreator interface {
-	CreateRepo(businessName, username string) (string, error)
+	CreateRepo(businessName, username string, id int) (string, error)
 }

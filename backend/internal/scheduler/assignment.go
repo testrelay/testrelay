@@ -12,6 +12,11 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
+type HasuraScheduleResponse struct {
+	Message string `json:"message"`
+	EventId string `json:"event_id"`
+}
+
 type HasuraSchedulePayload struct {
 	Type string             `json:"type"`
 	Args HasuraScheduleData `json:"args"`
@@ -70,7 +75,7 @@ func (h HasuraAssignmentScheduler) Stop(id string) error {
   }`, id))
 
 	res, err := h.client.Post(
-		h.baseURL+"/v1/query",
+		h.baseURL+"/v1/metadata",
 		"application/json",
 		body,
 	)
@@ -107,10 +112,11 @@ func (h HasuraAssignmentScheduler) Start(input assignment.StartInput) (string, e
 		return id, fmt.Errorf("could not marshal schedule event data %w", err)
 	}
 
+	buffer := bytes.NewBuffer(b)
 	res, err := h.client.Post(
-		h.baseURL+"/v1/query",
+		h.baseURL+"/v1/metadata",
 		"application/json",
-		bytes.NewBuffer(b),
+		buffer,
 	)
 	if err != nil {
 		return id, fmt.Errorf("could not post to %s %w", h.baseURL, err)
@@ -121,5 +127,6 @@ func (h HasuraAssignmentScheduler) Start(input assignment.StartInput) (string, e
 		return id, fmt.Errorf("non 200 status code for schedule body: %s", rb)
 	}
 
+	// TODO one 2.1 hasura becomes stable we should use the event_id returned
 	return id, nil
 }

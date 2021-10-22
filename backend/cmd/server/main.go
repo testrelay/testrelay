@@ -53,7 +53,7 @@ func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
 	}
 
 	gh, err := api.NewGraphQLQueryHandler(
-		config.HasuraURL,
+		config.HasuraURL+"/v1/graphql",
 		&api.GraphResolver{
 			HasuraURL: config.HasuraToken,
 			Collector: collector,
@@ -97,7 +97,7 @@ func run() {
 	}
 	logger := newLogger(config)
 
-	hasuraClient := graphql.NewClient(config.HasuraURL, config.HasuraToken)
+	hasuraClient := graphql.NewClient(config.HasuraURL+"/v1/graphql", config.HasuraToken)
 	githubClient := vcs.NewClient(config.GithubAccessToken)
 
 	mailer := newMailer(config)

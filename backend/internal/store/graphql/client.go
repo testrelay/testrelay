@@ -146,7 +146,7 @@ func (h HasuraClient) GetAssignment(id int) (assignment.WithTestDetails, error) 
 
 	return assignment.WithTestDetails{
 		Status:             string(q.AssignmentsByPK.Status),
-		TestTimeChosen:     string(q.AssignmentsByPK.TestDayChosen),
+		TestTimeChosen:     string(q.AssignmentsByPK.TestTimeChosen),
 		ChooseUntil:        string(q.AssignmentsByPK.ChooseUntil),
 		TestDayChosen:      string(q.AssignmentsByPK.TestDayChosen),
 		TestID:             int(q.AssignmentsByPK.TestId),

@@ -64,6 +64,7 @@ func (s Scheduler) Start(assignmentID int) error {
 		githubRepoURL, err = s.VCSCreator.CreateRepo(
 			assignment.Test.Business.Name,
 			assignment.Candidate.GithubUsername,
+			assignment.ID,
 		)
 		if err != nil {
 			return fmt.Errorf("could not generate repo for assignment %w", err)
