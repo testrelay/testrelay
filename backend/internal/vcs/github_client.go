@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -77,29 +78,59 @@ func (c GithubClient) CreateRepo(bName, username string, id int) (string, error)
 }
 
 var (
-	repl  = regexp.MustCompile("https://github.com/")
-	grepl = regexp.MustCompile("\\.git")
+	repl                     = regexp.MustCompile("https://github.com/")
+	grepl                    = regexp.MustCompile("\\.git")
+
+	ErrorAlreadyCollaborator = errors.New("already collaborator")
 )
 
 func (c GithubClient) AddCollaborator(repo string, username string) error {
 	repo = repl.ReplaceAllString(repo, "")
 	repo = grepl.ReplaceAllString(repo, "")
+
 	pieces := strings.Split(repo, "/")
+	owner := pieces[0]
+	name := pieces[1]
 
-	var i int
+	var colabs []*github.User
 	var err error
-	for i < 3 {
-		_, err = c.Client.Repositories.AddCollaborator(context.Background(), pieces[0], pieces[1], username, nil)
+	for i := 0; i < 3; i++ {
+		colabs, _, err = c.Client.Repositories.ListCollaborators(context.Background(), owner, name, nil)
 		if err == nil {
-			return nil
+			break
 		}
-
-		log.Printf("could not add colaborator %s sleeping", err)
+		log.Printf("could not list colaborator %s sleeping", err)
 		time.Sleep(time.Second)
 		i++
 	}
 
-	return fmt.Errorf("could not add %s to generated repository %s %w", username, repo, err)
+	if err != nil {
+		return fmt.Errorf("could not list colaborators for repo %s %s %w", owner, name, err)
+	}
+
+	invites, _, err := c.Client.Repositories.ListInvitations(context.Background(), owner, name, nil)
+	if err != nil {
+		return fmt.Errorf("could not list invites for repo %s %s %w", owner, name, err)
+	}
+
+	alreadyActive := make(map[string]struct{})
+	for _, invite := range invites {
+		alreadyActive[invite.Invitee.GetLogin()] = struct{}{}
+	}
+	for _, u := range colabs {
+		alreadyActive[u.GetLogin()] = struct{}{}
+	}
+
+	if _, ok := alreadyActive[username]; ok {
+		return ErrorAlreadyCollaborator
+	}
+
+	_, err = c.Client.Repositories.AddCollaborator(context.Background(), owner, name, username, nil)
+	if err != nil {
+		return fmt.Errorf("could not add %s to generated repository %s %w", username, repo, err)
+	}
+
+	return nil
 }
 
 func (c GithubClient) addCollaborator(login string, repoName string, username string) error {
@@ -290,6 +321,20 @@ func (c GithubClient) Cleanup(details core.CleanDetails) error {
 	_, err := c.Client.Repositories.RemoveCollaborator(context.Background(), owner, name, details.CandidateUsername)
 	if err != nil {
 		return fmt.Errorf("could not remove collaborator from test repo %s %s %w", owner, name, err)
+	}
+
+	invites, _, err := c.Client.Repositories.ListInvitations(context.Background(), owner, name, nil)
+	if err != nil {
+		return fmt.Errorf("could not list invitations for repo %s %s %s", owner, name, err)
+	}
+
+	for _, invite := range invites {
+		if invite.GetInvitee().GetLogin() == details.CandidateUsername {
+			_, err := c.Client.Repositories.DeleteInvitation(context.Background(), owner, name, invite.GetID())
+			if err != nil {
+				return fmt.Errorf("could not remove collaborator invitation from test repo %s %s %w", owner, name, err)
+			}
+		}
 	}
 
 	for _, reviewer := range details.ReviewersUsernames {

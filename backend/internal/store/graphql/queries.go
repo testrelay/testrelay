@@ -64,7 +64,9 @@ type AssignmentReviewers struct {
 }
 
 type Reviewer struct {
-	GithubUsername string `graphql:"github_username" json:"github_username"`
+	User struct {
+		GithubUsername string `graphql:"github_username" json:"github_username"`
+	} `graphql:"user" json:"user"`
 }
 
 type assignment_status_enum string

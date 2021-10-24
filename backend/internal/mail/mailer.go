@@ -134,11 +134,10 @@ func (s SMTPMailer) Send(config core.MailConfig, data interface{}) error {
 		return fmt.Errorf("could not build templates for test %s %w", config.TemplateName, err)
 	}
 
-	from := "info@" + s.Domain
+	from := "info" + s.Domain
 	if config.From != "" {
 		from = config.From + s.Domain
 	}
-
 
 	email := mail.NewMSG()
 	email.SetFrom(from).

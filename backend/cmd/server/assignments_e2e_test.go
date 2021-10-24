@@ -25,119 +25,6 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/test"
 )
 
-type deleteUserVars struct {
-	Id int `json:"id" faker:"-"`
-}
-
-type deleteBusinessVars struct {
-	Id     int `json:"id" faker:"-"`
-	UserId int `json:"user_id" faker:"-"`
-}
-
-type validateAssignmentVars struct {
-	Email string `json:"email" faker:"-"`
-	Id    int    `json:"id" faker:"-"`
-}
-
-type validateAssignmentQueryData struct {
-	AssignmentsByPk struct {
-		Status           string `json:"status"`
-		AssignmentEvents []struct {
-			EventType string `json:"event_type"`
-		} `json:"assignment_events"`
-	} `json:"assignments_by_pk"`
-	Users []struct {
-		Id            int    `json:"id"`
-		AuthId        string `json:"auth_id"`
-		BusinessUsers []struct {
-			BusinessId int    `json:"business_id"`
-			UserType   string `json:"user_type"`
-		} `json:"business_users"`
-	} `json:"users"`
-}
-
-type insertAssignmentMuData struct {
-	Insert struct {
-		ID             int    `json:"id"`
-		CandidateEmail string `json:"candidate_email"`
-	} `json:"insert_assignments_one"`
-}
-
-type insertUserWithBusinessMuData struct {
-	Insert struct {
-		ID      int    `json:"id"`
-		Name    string `json:"name"`
-		Creator struct {
-			ID int `json:"id"`
-		} `json:"creator"`
-	} `json:"insert_businesses_one"`
-}
-
-type insertUserWithBusinessVars struct {
-	AuthID       string `json:"auth_id" faker:"uuid_hyphenated"`
-	Email        string `json:"email" faker:"-"`
-	BusinessName string `json:"business_name" faker:"username"`
-}
-
-type insertAssignmentVars struct {
-	RecruiterID    int    `json:"recruiter_id" faker:"-"`
-	BusinessID     int    `json:"business_id" faker:"-"`
-	Email          string `json:"email" faker:"-"`
-	Name           string `json:"name" faker:"name"`
-	ChooseUntil    string `json:"choose_until" faker:"date"`
-	TimeLimit      int    `json:"time_limit" faker:"oneof: 14400, 28800, 129000"`
-	TestGithubRepo string `json:"test_github_repo" faker:"-"`
-	TestName       string `json:"test_name" faker:"username"`
-	TestWindow     int    `json:"test_window" faker:"oneof: 100,200,600"`
-	TestTimeLimit  int    `json:"test_time_limit" faker:"oneof: 100,200,600"`
-}
-
-type MailhogQueryResponse struct {
-	Total int `json:"total"`
-	Count int `json:"count"`
-	Start int `json:"start"`
-	Items []struct {
-		ID   string `json:"ID"`
-		From struct {
-			Relays  interface{} `json:"Relays"`
-			Mailbox string      `json:"Mailbox"`
-			Domain  string      `json:"Domain"`
-			Params  string      `json:"Params"`
-		} `json:"From"`
-		To []struct {
-			Relays  interface{} `json:"Relays"`
-			Mailbox string      `json:"Mailbox"`
-			Domain  string      `json:"Domain"`
-			Params  string      `json:"Params"`
-		} `json:"To"`
-		Content struct {
-			Headers struct {
-				ContentTransferEncoding []string `json:"Content-Transfer-Encoding"`
-				ContentType             []string `json:"Content-Type"`
-				Date                    []string `json:"Date"`
-				From                    []string `json:"From"`
-				MessageID               []string `json:"Message-ID"`
-				MimeVersion             []string `json:"Mime-Version"`
-				Received                []string `json:"Received"`
-				ReturnPath              []string `json:"Return-Path"`
-				Subject                 []string `json:"Subject"`
-				To                      []string `json:"To"`
-			} `json:"Headers"`
-			Body string      `json:"Body"`
-			Size int         `json:"Size"`
-			MIME interface{} `json:"MIME"`
-		} `json:"Content"`
-		Created time.Time   `json:"Created"`
-		MIME    interface{} `json:"MIME"`
-		Raw     struct {
-			From string   `json:"From"`
-			To   []string `json:"To"`
-			Data string   `json:"Data"`
-			Helo string   `json:"Helo"`
-		} `json:"Raw"`
-	} `json:"items"`
-}
-
 func TestAssignments(t *testing.T) {
 	t.Run("/events", func(t *testing.T) {
 		t.Run("insert assignment event", func(t *testing.T) {
@@ -177,7 +64,7 @@ func TestAssignments(t *testing.T) {
 				t.Run("start", func(t *testing.T) {
 					step := "start"
 					sendStepPayload(t, step, fullAssignment)
-					assertWarningEmailSent(t, fullAssignment, tr, trBusinessWithUser)
+					assertWarningEmailSent(t, fullAssignment, trBusinessWithUser)
 				})
 
 				t.Run("init", func(t *testing.T) {
@@ -188,19 +75,92 @@ func TestAssignments(t *testing.T) {
 				})
 
 				t.Run("end", func(t *testing.T) {
-					// call one off handler with send at now and payload end
-					// check that email has been sent
+					step := "end"
+					sendStepPayload(t, step, fullAssignment)
+					assertFinishEmailSent(t, fullAssignment)
 				})
 
 				t.Run("cleanup", func(t *testing.T) {
-					// call one off handler with send at now and payload init
-					// check github removed user
-					// check emails sent to recruiter and candidate
-					// check event created with missed
+					addReviewer(t, fullAssignment.ID)
+					step := "cleanup"
+					sendStepPayload(t, step, fullAssignment)
+					assertGithubRepoCleaned(t, candidateRepo, candidate)
+					assertCandidateMissedEmail(t, fullAssignment)
+					assertRecruiterMissedEmail(t, fullAssignment)
+					assertAssignmentEvent(t, fullAssignment.ID, candidate.ID, "missed")
 				})
 			})
 		})
 	})
+}
+
+func assertRecruiterMissedEmail(t *testing.T, fullAssignment assignment.WithTestDetails) {
+	emails, ok := waitForEmail(t, fullAssignment.Recruiter.Email)
+	require.True(t, ok)
+	assert.Equal(t, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
+	assert.Equal(t, fullAssignment.CandidateName+" missed the deadline to submit their technical assignment", emails.Items[0].Content.Headers.Subject[0])
+	assert.NotContains(t, emails.Items[0].Content.Body, "{{")
+	assert.Contains(t, specialChar.ReplaceAllString(emails.Items[0].Content.Body, ""), "missed the deadline to submit their assignment")
+}
+
+func assertCandidateMissedEmail(t *testing.T, fullAssignment assignment.WithTestDetails) {
+	emails, ok := waitForEmail(t, fullAssignment.Candidate.Email)
+	require.True(t, ok)
+	assert.Equal(t, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
+	assert.Equal(t, "You missed the deadline for submitting your technical test", emails.Items[0].Content.Headers.Subject[0])
+	assert.NotContains(t, emails.Items[0].Content.Body, "{{")
+	assert.Contains(t, specialChar.ReplaceAllString(emails.Items[0].Content.Body, ""), "you missed the deadline to submit your assignment")
+}
+
+func assertGithubRepoCleaned(t *testing.T, r *github.Repository, candidate userQueryData) {
+	owner := r.GetOwner().GetLogin()
+	repoName := r.GetName()
+
+	invites, _, err := githubClient.Repositories.ListInvitations(context.Background(), owner, repoName, nil)
+	require.NoError(t, err)
+
+	var invitees []string
+	for _, u := range invites {
+		invitees = append(invitees, u.Invitee.GetLogin())
+	}
+
+	assert.Contains(t, invitees, testReviewerGithubUsername)
+	assert.NotContains(t, invitees, testUserGithubUsername)
+}
+
+var addReviewerMu = `
+mutation MyMutation(
+	$assignment_id: Int!
+	$auth_id: String!
+	$github_username: String!
+	$email: String!
+) {
+	insert_assignment_users(
+		objects: {
+			assignment_id: $assignment_id
+			user: {
+				data: {
+					auth_id: $auth_id
+					github_username: $github_username
+					email: $email
+				}
+			}
+		}
+	) {
+		affected_rows
+	}
+}
+
+`
+
+func addReviewer(t *testing.T, id int) {
+	_, err := rawGraphlClient.Do(addReviewerMu, map[string]interface{}{
+		"assignment_id":   id,
+		"email":           faker.Email(),
+		"auth_id":         faker.UUIDHyphenated(),
+		"github_username": testReviewerGithubUsername,
+	}, nil)
+	require.NoError(t, err)
 }
 
 var assignmentEventQuery = `
@@ -242,13 +202,22 @@ func assertAssignmentEvent(t *testing.T, assignmentID int, userID int, eventType
 
 var specialChar = regexp.MustCompile(`[=\r\n]`)
 
-func assertWarningEmailSent(t *testing.T, fullAssignment assignment.WithTestDetails, tr *test.Runner, trBusinessWithUser insertUserWithBusinessMuData) {
+func assertFinishEmailSent(t *testing.T, fullAssignment assignment.WithTestDetails) {
 	emails, ok := waitForEmail(t, fullAssignment.Candidate.Email)
 	require.True(t, ok)
-	assert.Equal(tr.T, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
-	assert.Equal(tr.T, "5 minute reminder for your "+trBusinessWithUser.Insert.Name+" assignment", emails.Items[0].Content.Headers.Subject[0])
-	assert.NotContains(tr.T, emails.Items[0].Content.Body, "{{")
-	assert.Contains(tr.T, specialChar.ReplaceAllString(emails.Items[0].Content.Body, ""), fullAssignment.GithubRepoURL)
+	assert.Equal(t, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
+	assert.Equal(t, "Your technical test is about to finish", emails.Items[0].Content.Headers.Subject[0])
+	assert.NotContains(t, emails.Items[0].Content.Body, "{{")
+	assert.Contains(t, specialChar.ReplaceAllString(emails.Items[0].Content.Body, ""), "Your test is due is about to end.")
+}
+
+func assertWarningEmailSent(t *testing.T, fullAssignment assignment.WithTestDetails, trBusinessWithUser insertUserWithBusinessMuData) {
+	emails, ok := waitForEmail(t, fullAssignment.Candidate.Email)
+	require.True(t, ok)
+	assert.Equal(t, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
+	assert.Equal(t, "5 minute reminder for your "+trBusinessWithUser.Insert.Name+" technical test", emails.Items[0].Content.Headers.Subject[0])
+	assert.NotContains(t, emails.Items[0].Content.Body, "{{")
+	assert.Contains(t, specialChar.ReplaceAllString(emails.Items[0].Content.Body, ""), fullAssignment.GithubRepoURL)
 }
 
 func sendStepPayload(t *testing.T, step string, fullAssignment assignment.WithTestDetails) {
@@ -311,7 +280,17 @@ func assertGithubRepoCreated(tr *test.Runner, details assignmentTestDetailsData,
 }
 
 func assertHasCommits(t *testing.T, owner string, repoName string) {
-	commits, _, err := githubClient.Repositories.ListCommits(context.Background(), owner, repoName, nil)
+	var commits []*github.RepositoryCommit
+	var err error
+	for i := 0; i < 3; i++ {
+		commits, _, err = githubClient.Repositories.ListCommits(context.Background(), owner, repoName, nil)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+
 	require.NoError(t, err)
 	require.Len(t, commits, 1)
 
@@ -511,6 +490,28 @@ mutation ($id: Int!) {
 }
 `
 
+type validateAssignmentQueryData struct {
+	AssignmentsByPk struct {
+		Status           string `json:"status"`
+		AssignmentEvents []struct {
+			EventType string `json:"event_type"`
+		} `json:"assignment_events"`
+	} `json:"assignments_by_pk"`
+	Users []struct {
+		Id            int    `json:"id"`
+		AuthId        string `json:"auth_id"`
+		BusinessUsers []struct {
+			BusinessId int    `json:"business_id"`
+			UserType   string `json:"user_type"`
+		} `json:"business_users"`
+	} `json:"users"`
+}
+
+type validateAssignmentVars struct {
+	Email string `json:"email" faker:"-"`
+	Id    int    `json:"id" faker:"-"`
+}
+
 func assertAssignmentUpdated(tr *test.Runner, cRec *auth.UserRecord, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) validateAssignmentQueryData {
 	vav := validateAssignmentVars{
 		Email: strings.ToLower(res.Insert.CandidateEmail),
@@ -534,7 +535,9 @@ func assertAssignmentUpdated(tr *test.Runner, cRec *auth.UserRecord, res insertA
 
 	tr.AddCleanupStep(func() error {
 		if len(vad.Users) > 0 {
-			_, err := rawGraphlClient.Do(deleteUserMu, toQueryVars(tr.T, &deleteUserVars{Id: vad.Users[0].Id}), nil)
+			_, err := rawGraphlClient.Do(deleteUserMu, map[string]interface{}{
+				"id": vad.Users[0].Id,
+			}, nil)
 			return err
 		}
 
@@ -582,6 +585,26 @@ insert_assignments_one (
 	candidate_email
 }
 }`
+
+type insertAssignmentMuData struct {
+	Insert struct {
+		ID             int    `json:"id"`
+		CandidateEmail string `json:"candidate_email"`
+	} `json:"insert_assignments_one"`
+}
+
+type insertAssignmentVars struct {
+	RecruiterID    int    `json:"recruiter_id" faker:"-"`
+	BusinessID     int    `json:"business_id" faker:"-"`
+	Email          string `json:"email" faker:"-"`
+	Name           string `json:"name" faker:"name"`
+	ChooseUntil    string `json:"choose_until" faker:"date"`
+	TimeLimit      int    `json:"time_limit" faker:"oneof: 14400, 28800, 129000"`
+	TestGithubRepo string `json:"test_github_repo" faker:"-"`
+	TestName       string `json:"test_name" faker:"username"`
+	TestWindow     int    `json:"test_window" faker:"oneof: 100,200,600"`
+	TestTimeLimit  int    `json:"test_time_limit" faker:"oneof: 100,200,600"`
+}
 
 func insertAssignment(tr *test.Runner, testRepo *github.Repository, trBusinessWithUser insertUserWithBusinessMuData) insertAssignmentMuData {
 	candidateEmail := faker.Email()
@@ -632,6 +655,22 @@ mutation ($auth_id: String!, $email: String!, $business_name: String!) {
 
 `
 
+type insertUserWithBusinessMuData struct {
+	Insert struct {
+		ID      int    `json:"id"`
+		Name    string `json:"name"`
+		Creator struct {
+			ID int `json:"id"`
+		} `json:"creator"`
+	} `json:"insert_businesses_one"`
+}
+
+type insertUserWithBusinessVars struct {
+	AuthID       string `json:"auth_id" faker:"uuid_hyphenated"`
+	Email        string `json:"email" faker:"-"`
+	BusinessName string `json:"business_name" faker:"username"`
+}
+
 func createRecruiterAndBusiness(tr *test.Runner, recruiterUser *auth.UserRecord) insertUserWithBusinessMuData {
 	vb := insertUserWithBusinessVars{
 		Email:  recruiterUser.Email,
@@ -643,8 +682,10 @@ func createRecruiterAndBusiness(tr *test.Runner, recruiterUser *auth.UserRecord)
 	require.NoError(tr.T, err)
 
 	tr.AddCleanupStep(func() error {
-		vars := deleteBusinessVars{Id: res.Insert.ID, UserId: res.Insert.Creator.ID}
-		_, err := rawGraphlClient.Do(deleteBusinessMu, toQueryVars(tr.T, &vars), nil)
+		_, err := rawGraphlClient.Do(deleteBusinessMu, map[string]interface{}{
+			"id":      res.Insert.ID,
+			"user_id": res.Insert.Creator.ID,
+		}, nil)
 		return err
 	})
 
@@ -683,6 +724,52 @@ func generateTestRepository(tr *test.Runner) *github.Repository {
 	return repo
 }
 
+type MailhogQueryResponse struct {
+	Total int `json:"total"`
+	Count int `json:"count"`
+	Start int `json:"start"`
+	Items []struct {
+		ID   string `json:"ID"`
+		From struct {
+			Relays  interface{} `json:"Relays"`
+			Mailbox string      `json:"Mailbox"`
+			Domain  string      `json:"Domain"`
+			Params  string      `json:"Params"`
+		} `json:"From"`
+		To []struct {
+			Relays  interface{} `json:"Relays"`
+			Mailbox string      `json:"Mailbox"`
+			Domain  string      `json:"Domain"`
+			Params  string      `json:"Params"`
+		} `json:"To"`
+		Content struct {
+			Headers struct {
+				ContentTransferEncoding []string `json:"Content-Transfer-Encoding"`
+				ContentType             []string `json:"Content-Type"`
+				Date                    []string `json:"Date"`
+				From                    []string `json:"From"`
+				MessageID               []string `json:"Message-ID"`
+				MimeVersion             []string `json:"Mime-Version"`
+				Received                []string `json:"Received"`
+				ReturnPath              []string `json:"Return-Path"`
+				Subject                 []string `json:"Subject"`
+				To                      []string `json:"To"`
+			} `json:"Headers"`
+			Body string      `json:"Body"`
+			Size int         `json:"Size"`
+			MIME interface{} `json:"MIME"`
+		} `json:"Content"`
+		Created time.Time   `json:"Created"`
+		MIME    interface{} `json:"MIME"`
+		Raw     struct {
+			From string   `json:"From"`
+			To   []string `json:"To"`
+			Data string   `json:"Data"`
+			Helo string   `json:"Helo"`
+		} `json:"Raw"`
+	} `json:"items"`
+}
+
 func waitForEmail(t *testing.T, email string) (MailhogQueryResponse, bool) {
 	t.Helper()
 
@@ -699,12 +786,14 @@ func waitForEmail(t *testing.T, email string) (MailhogQueryResponse, bool) {
 			continue
 		}
 
-		req, err := http.NewRequest(http.MethodDelete, "http://localhost:8025/api/v1/messages", nil)
-		assert.NoError(t, err)
+		for _, item := range data.Items {
+			req, err := http.NewRequest(http.MethodDelete, "http://localhost:8025/api/v1/messages/"+item.ID, nil)
+			assert.NoError(t, err)
 
-		res, err = http.DefaultClient.Do(req)
-		assert.NoError(t, err)
-		assert.Equal(t, 200, res.StatusCode)
+			res, err = http.DefaultClient.Do(req)
+			assert.NoError(t, err)
+			assert.Equal(t, 200, res.StatusCode)
+		}
 
 		return data, true
 	}

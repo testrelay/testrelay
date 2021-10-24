@@ -96,7 +96,7 @@ func (r Runner) cleanup(assignment WithTestDetails) error {
 func (r Runner) end(assignment WithTestDetails) error {
 	err := r.Mailer.Send(core.MailConfig{
 		TemplateName: "end",
-		Subject:      "Your test is about to finish",
+		Subject:      "Your technical test is about to finish",
 		From:         "candidates",
 		To:           assignment.CandidateEmail,
 	}, assignment)
@@ -148,7 +148,7 @@ func (r Runner) init(assignment WithTestDetails) error {
 func (r Runner) start(assignment WithTestDetails) error {
 	err := r.Mailer.Send(core.MailConfig{
 		TemplateName: "warning",
-		Subject:      "5 minute reminder for your " + assignment.Test.Business.Name + " assignment",
+		Subject:      "5 minute reminder for your " + assignment.Test.Business.Name + " technical test",
 		From:         "candidates",
 		To:           assignment.CandidateEmail,
 	}, assignment)
@@ -172,7 +172,7 @@ func (r Runner) start(assignment WithTestDetails) error {
 func (r Runner) sendEnd(status string, data WithTestDetails) error {
 	subject := "Thanks for submitting your test for " + data.Test.Business.Name
 	if status != "submitted" {
-		subject = "You missed the deadline for submitting your test"
+		subject = "You missed the deadline for submitting your technical test"
 	}
 
 	err := r.Mailer.Send(core.MailConfig{
@@ -187,7 +187,7 @@ func (r Runner) sendEnd(status string, data WithTestDetails) error {
 
 	subject = data.CandidateName + " has submitted their assignment"
 	if status != "submitted" {
-		subject = data.CandidateName + " missed the deadline to submit their assignment"
+		subject = data.CandidateName + " missed the deadline to submit their technical assignment"
 	}
 
 	err = r.Mailer.Send(core.MailConfig{

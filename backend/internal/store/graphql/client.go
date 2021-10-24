@@ -233,13 +233,13 @@ func (h HasuraClient) UpdateAssignmentToSent(a assignment.SentDetails) error {
 func (h HasuraClient) Reviewers(id int) ([]string, error) {
 	var q AssignmentReviewers
 
-	err := h.client.Mutate(context.Background(), &q, map[string]interface{}{
+	err := h.client.Query(context.Background(), &q, map[string]interface{}{
 		"id": graphql.Int(id),
 	})
 
 	reviewers := make([]string, len(q.AssignmentUsers.Reviewers))
 	for i, reviewer := range q.AssignmentUsers.Reviewers {
-		reviewers[i] = reviewer.GithubUsername
+		reviewers[i] = reviewer.User.GithubUsername
 	}
 
 	return reviewers, err

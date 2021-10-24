@@ -1,9 +1,11 @@
 package assignmentuser
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/testrelay/testrelay/backend/internal/core"
+	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
 type ReviewerRepository interface {
@@ -25,6 +27,11 @@ func (a Assigner) Assign(r RawReviewer) error {
 	if rd.Assignment.GithubRepoUrl != "" && rd.User.GithubUsername != "" {
 		err := a.VCSClient.AddCollaborator(rd.Assignment.GithubRepoUrl, rd.User.GithubUsername)
 		if err != nil {
+			// return as nothing to do here
+			if errors.Is(err, vcs.ErrorAlreadyCollaborator) {
+				return nil
+			}
+
 			return fmt.Errorf(
 				"could not vcs collaborator: %s to repo: %s %w",
 				rd.User.GithubUsername,
