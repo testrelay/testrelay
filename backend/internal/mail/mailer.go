@@ -59,41 +59,41 @@ var (
 </body>
 </html>`
 
-	missedHtmlR  = `<html>
+	missedHtmlR = `<html>
 <p>{{ .CandidateName }} missed the deadline to submit their assignment. Try reaching out to them to understand why they weren't able to complete the assignment.</p>
 </body>
 </html>`
 
 	templates = map[string]t{
 		"warning": {
-			html:  candidateStepInviteHtml,
+			html: candidateStepInviteHtml,
 		},
 		"end": {
-			html:  endEmailHtml,
+			html: endEmailHtml,
 		},
 		"submitted": {
-			html:  submittedHTML,
+			html: submittedHTML,
 		},
 		"submitted-recruiter": {
-			html:  submittedHTMLR,
+			html: submittedHTMLR,
 		},
 		"missed": {
-			html:  missedHtml,
+			html: missedHtml,
 		},
 		"missed-recruiter": {
-			html:  missedHtmlR,
+			html: missedHtmlR,
 		},
 		"reviewer-invite": {
-			html:  reviewInviteHTML,
+			html: reviewInviteHTML,
 		},
 		"candidate-invite": {
-			html:  candidateInviteHtml,
+			html: candidateInviteHtml,
 		},
 	}
 )
 
 type t struct {
-	html  string
+	html string
 }
 
 func buildTemplates(name string, data interface{}) (*bytes.Buffer, error) {
@@ -110,7 +110,7 @@ func buildTemplates(name string, data interface{}) (*bytes.Buffer, error) {
 }
 
 type SMTPMailer struct {
-	client *mail.SMTPClient
+	server *mail.SMTPServer
 	Domain string
 }
 
@@ -122,13 +122,8 @@ func NewSMTPMailer(config core.SMTPConfig) (SMTPMailer, error) {
 	server.Username = config.Username
 	server.Password = config.Password
 
-	smtpClient, err := server.Connect()
-	if err != nil {
-		return SMTPMailer{}, fmt.Errorf("could not connect to smtp server %w", err)
-	}
-
 	return SMTPMailer{
-		client: smtpClient,
+		server: server,
 		Domain: config.SendingDomain,
 	}, nil
 }
@@ -144,11 +139,17 @@ func (s SMTPMailer) Send(config core.MailConfig, data interface{}) error {
 		from = config.From + s.Domain
 	}
 
+
 	email := mail.NewMSG()
 	email.SetFrom(from).
 		AddTo(config.To).
 		SetSubject(config.Subject).
 		SetBody(mail.TextHTML, html.String())
 
-	return email.Send(s.client)
+	conn, err := s.server.Connect()
+	if err != nil {
+		return fmt.Errorf("failed to get smtp server connection %w", err)
+	}
+
+	return email.Send(conn)
 }

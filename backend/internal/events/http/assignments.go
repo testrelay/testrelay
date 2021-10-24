@@ -148,8 +148,12 @@ func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 type StepPayload struct {
-	Step string             `json:"step"`
-	Data assignment.RunData `json:"data"`
+	Payload struct {
+		Data assignment.WithTestDetails `json:"data"`
+		Step string                     `json:"step"`
+	} `json:"payload"`
+	Id      string `json:"id"`
+	Comment string `json:"comment"`
 }
 
 func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request) {
@@ -167,12 +171,12 @@ func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = a.Runner.Run(data.Step, data.Data)
+	err = a.Runner.Run(data.Payload.Step, assignment.RunData{Data: data.Payload.Data})
 	if err != nil {
 		a.Logger.Error(
 			"run step errored",
-			"step", data.Step,
-			"data", data.Data,
+			"step", data.Payload.Step,
+			"data", data.Payload.Data,
 			"error", err,
 		)
 

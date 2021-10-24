@@ -4,12 +4,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +18,10 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/testrelay/testrelay/backend/internal/core/assignment"
+	http2 "github.com/testrelay/testrelay/backend/internal/events/http"
+	"github.com/testrelay/testrelay/backend/internal/test"
 )
 
 var insertAssignmentMutation = `
@@ -236,8 +240,9 @@ type MailhogQueryResponse struct {
 func TestAssignments(t *testing.T) {
 	t.Run("/events", func(t *testing.T) {
 		t.Run("insert assignment event", func(t *testing.T) {
-			tr := &testRunner{mu: &sync.Mutex{}, t: t}
-			defer tr.clean()
+			//var candidateRepo *github.Repository
+			tr := test.NewRunner(t)
+			defer tr.Clean()
 
 			// setup
 			testRepo := generateTestRepository(tr)
@@ -245,68 +250,110 @@ func TestAssignments(t *testing.T) {
 			trBusinessWithUser := createRecruiterAndBusiness(tr, fbRecruiter)
 
 			// insert assignment which triggers events
-			res := insertAssignment(tr, testRepo, trBusinessWithUser)
+			assignmentInsertData := insertAssignment(tr, testRepo, trBusinessWithUser)
 
 			// assertions
-			assertEmailSent(tr, res, trBusinessWithUser)
-			cRec := assertCandidateCreatedInFirebase(tr, res)
-			vad := assertAssignmentUpdated(tr, cRec, res, trBusinessWithUser)
+			assertEmailSent(tr, assignmentInsertData, trBusinessWithUser)
+			cRec := assertCandidateCreatedInFirebase(tr, assignmentInsertData)
+			vad := assertAssignmentUpdated(tr, cRec, assignmentInsertData, trBusinessWithUser)
 			assertCandidateClaims(tr, trBusinessWithUser, cRec, vad)
-		})
+			t.Run("insert assignment_events event", func(t *testing.T) {
+				candidate := updateInsertedCandidateWithGithubUsername(tr, assignmentInsertData)
+				now := time.Now()
+				updateAssignmentWithTimeChosen(tr, assignmentInsertData, now.Format("15:04"), now.AddDate(0, 0, 4).Format("2006-01-02"))
+				insertAssignmentEvent(tr, assignmentInsertData, candidate, "scheduled")
 
-		t.Run("insert assignment_events event", func(t *testing.T) {
-			tr := &testRunner{mu: &sync.Mutex{}, t: t}
-			defer tr.clean()
+				assignmentDetails := waitForAssignmentDetails(tr, assignmentInsertData)
+				assertGithubRepoCreated(tr, assignmentDetails, trBusinessWithUser)
+				assertEventScheduled(tr, assignmentDetails)
+			})
 
-			// setup
-			testRepo := generateTestRepository(tr)
-			fbRecruiter := createRecruiterFirebaseUser(tr)
-			trBusinessWithUser := createRecruiterAndBusiness(tr, fbRecruiter)
+			t.Run("call process handler", func(t *testing.T) {
+				fullAssignment, err := hasuraClient.GetAssignment(assignmentInsertData.Insert.ID)
+				require.NoError(t, err)
+				t.Run("start", func(t *testing.T) {
+					step := "start"
+					sendStepPayload(t, step, fullAssignment)
+					assertWarningEmailSent(t, fullAssignment, tr, trBusinessWithUser)
+				})
 
-			res := insertAssignment(tr, testRepo, trBusinessWithUser)
+				t.Run("init", func(t *testing.T) {
+					// call one off handler with send at now and payload init
+					// check github uploaded
+					// cehck assignment_events
+				})
 
-			// assert the invite email sent which adds the candidate e.t.c
-			assertEmailSent(tr, res, trBusinessWithUser)
+				t.Run("end", func(t *testing.T) {
+					// call one off handler with send at now and payload end
+					// check that email has been sent
+				})
 
-			candidate := updateInsertedCandidateWithGithubUsername(tr, res)
-			now := time.Now()
-			updateAssignmentWithTimeChosen(tr, res, now.Format("15:04"), now.AddDate(0, 0, 4).Format("2006-01-02"))
-			insertAssignmentEvent(tr, res, candidate, "scheduled")
-
-			assignmentDetails := waitForAssignmentDetails(tr, res)
-			assertGithubRepoCreated(tr, assignmentDetails, trBusinessWithUser)
-			assertEventScheduled(tr, assignmentDetails)
-		})
-	})
-
-	t.Run("/process", func(t *testing.T) {
-		t.Run("/init", func(t *testing.T) {
-
+				t.Run("cleanup", func(t *testing.T) {
+					// call one off handler with send at now and payload init
+					// check github removed user
+					// check emails sent to recruiter and candidate
+					// check event created with missed
+				})
+			})
 		})
 	})
 }
 
-func assertEventScheduled(tr *testRunner, details assignmentTestDetailsData) {
-	// todo
+func assertWarningEmailSent(t *testing.T, fullAssignment assignment.WithTestDetails, tr *test.Runner, trBusinessWithUser insertUserWithBusinessMuData) {
+	emails, ok := waitForEmail(t, fullAssignment.Candidate.Email)
+	require.True(t, ok)
+	assert.Equal(tr.T, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
+	assert.Equal(tr.T, "5 minute reminder for your "+trBusinessWithUser.Insert.Name+" assignment", emails.Items[0].Content.Headers.Subject[0])
+	assert.NotContains(tr.T, emails.Items[0].Content.Body, "{{")
+	assert.Contains(tr.T, emails.Items[0].Content.Body, fullAssignment.GithubRepoURL)
 }
 
-func assertGithubRepoCreated(tr *testRunner, details assignmentTestDetailsData, user insertUserWithBusinessMuData) {
+func sendStepPayload(t *testing.T, step string, fullAssignment assignment.WithTestDetails) {
+	body := newStepPayload(t, step, fullAssignment)
+	res, err := http.Post("http://localhost:8000/assignments/process", "application/json", body)
+
+	require.NoError(t, err)
+	require.Equal(t, 200, res.StatusCode)
+}
+
+func newStepPayload(t *testing.T, step string, fullAssignment assignment.WithTestDetails) *bytes.Buffer {
+	body := http2.StepPayload{
+		Payload: struct {
+			Data assignment.WithTestDetails `json:"data"`
+			Step string                     `json:"step"`
+		}{
+			Data: fullAssignment,
+			Step: step,
+		},
+	}
+	buf := &bytes.Buffer{}
+	err := json.NewEncoder(buf).Encode(body)
+	require.NoError(t, err)
+
+	return buf
+}
+
+func assertEventScheduled(tr *test.Runner, details assignmentTestDetailsData) {
+	// todo check hasura event scheduled
+}
+
+func assertGithubRepoCreated(tr *test.Runner, details assignmentTestDetailsData, user insertUserWithBusinessMuData) *github.Repository {
 	r, _, err := githubClient.Repositories.Get(
 		context.Background(),
 		githubTestOwner,
 		strings.ToLower(fmt.Sprintf("%s-%s-test-%d", testUserGithubUsername, user.Insert.Name, details.AssignmentsByPK.ID)),
 	)
-	require.NoError(tr.t, err)
+	require.NoError(tr.T, err)
 
 	owner := r.GetOwner().GetLogin()
 	repoName := r.GetName()
-	tr.addCleanupStep(func() error {
+	tr.AddCleanupStep(func() error {
 		_, err := githubClient.Repositories.Delete(context.Background(), owner, repoName)
 		return err
 	})
 
 	invites, _, err := githubClient.Repositories.ListInvitations(context.Background(), owner, repoName, nil)
-	require.NoError(tr.t, err)
+	require.NoError(tr.T, err)
 
 	var found bool
 	for _, u := range invites {
@@ -316,19 +363,20 @@ func assertGithubRepoCreated(tr *testRunner, details assignmentTestDetailsData, 
 		}
 	}
 
-	assert.True(tr.t, found, "could not find test user %s as invitee on generated repo %+v", testUserGithubUsername, invites)
+	assert.True(tr.T, found, "could not find test user %s as invitee on generated repo %+v", testUserGithubUsername, invites)
+	return r
 }
 
-func assertHasCommits(tr *testRunner, owner string, repoName string) {
+func assertHasCommits(tr *test.Runner, owner string, repoName string) {
 	commits, _, err := githubClient.Repositories.ListCommits(context.Background(), owner, repoName, nil)
-	require.NoError(tr.t, err)
-	require.Len(tr.t, commits, 1)
+	require.NoError(tr.T, err)
+	require.Len(tr.T, commits, 1)
 
 	c := commits[0].GetCommit()
-	assert.Equal(tr.t, "start test", c.GetMessage())
+	assert.Equal(tr.T, "start test", c.GetMessage())
 
 	tree := c.GetTree()
-	assert.Len(tr.t, tree.Entries, 2)
+	assert.Len(tr.T, tree.Entries, 2)
 
 	filenames := make([]string, 0, 2)
 	for _, e := range tree.Entries {
@@ -337,8 +385,8 @@ func assertHasCommits(tr *testRunner, owner string, repoName string) {
 		}
 	}
 
-	assert.Contains(tr.t, filenames, "test/index.txt")
-	assert.Contains(tr.t, filenames, "test.txt")
+	assert.Contains(tr.T, filenames, "test/index.txt")
+	assert.Contains(tr.T, filenames, "test.txt")
 }
 
 var fetchAssignmentTestDetails = `
@@ -359,17 +407,17 @@ type assignmentTestDetailsData struct {
 	} `json:"assignments_by_pk"`
 }
 
-func assertAssignmentUpdatedWithRepoDetails(tr *testRunner, res insertAssignmentMuData) assignmentTestDetailsData {
+func assertAssignmentUpdatedWithRepoDetails(tr *test.Runner, res insertAssignmentMuData) assignmentTestDetailsData {
 	var d assignmentTestDetailsData
-	_, err := hasuraClient.do(fetchAssignmentTestDetails, map[string]interface{}{
+	_, err := rawGraphlClient.Do(fetchAssignmentTestDetails, map[string]interface{}{
 		"id": res.Insert.ID,
 	}, &d)
-	require.NoError(tr.t, err)
+	require.NoError(tr.T, err)
 
 	return d
 }
 
-func waitForAssignmentDetails(tr *testRunner, res insertAssignmentMuData) assignmentTestDetailsData {
+func waitForAssignmentDetails(tr *test.Runner, res insertAssignmentMuData) assignmentTestDetailsData {
 	for i := 0; i < 5; i++ {
 		d := assertAssignmentUpdatedWithRepoDetails(tr, res)
 		if d.AssignmentsByPK.GithubRepoURL != "" && d.AssignmentsByPK.StepARN != "" {
@@ -379,7 +427,7 @@ func waitForAssignmentDetails(tr *testRunner, res insertAssignmentMuData) assign
 		time.Sleep(time.Second)
 	}
 
-	tr.t.Fatalf("could not find updated repo details for assignment %d", res.Insert.ID)
+	tr.T.Fatalf("could not find updated repo details for assignment %d", res.Insert.ID)
 	return assignmentTestDetailsData{}
 }
 
@@ -391,14 +439,14 @@ mutation ($id: Int!, $test_time_chosen: time!, $test_timezone_chosen: String!, $
 }
 `
 
-func updateAssignmentWithTimeChosen(tr *testRunner, res insertAssignmentMuData, timeChosen string, dayChosen string) {
-	_, err := hasuraClient.do(updateAssignmentWithTimeMu, map[string]interface{}{
+func updateAssignmentWithTimeChosen(tr *test.Runner, res insertAssignmentMuData, timeChosen string, dayChosen string) {
+	_, err := rawGraphlClient.Do(updateAssignmentWithTimeMu, map[string]interface{}{
 		"id":                   res.Insert.ID,
 		"test_time_chosen":     timeChosen,
 		"test_day_chosen":      dayChosen,
 		"test_timezone_chosen": "Europe/London",
 	}, nil)
-	require.NoError(tr.t, err)
+	require.NoError(tr.T, err)
 }
 
 var insertAssignmentEventMu = `
@@ -409,13 +457,13 @@ mutation InsertAssignmentEvent($assignment_id: Int!, $user_id: Int!, $event_type
 }
 `
 
-func insertAssignmentEvent(tr *testRunner, res insertAssignmentMuData, candidate userQueryData, eventType string) {
-	_, err := hasuraClient.do(insertAssignmentEventMu, map[string]interface{}{
+func insertAssignmentEvent(tr *test.Runner, res insertAssignmentMuData, candidate userQueryData, eventType string) {
+	_, err := rawGraphlClient.Do(insertAssignmentEventMu, map[string]interface{}{
 		"assignment_id": res.Insert.ID,
 		"user_id":       candidate.ID,
 		"event_type":    eventType,
 	}, nil)
-	require.NoError(tr.t, err)
+	require.NoError(tr.T, err)
 }
 
 var updateUserWithGithubUsername = `
@@ -443,25 +491,25 @@ type userQueryData struct {
 	Email  string `json:"email"`
 }
 
-func updateInsertedCandidateWithGithubUsername(tr *testRunner, a insertAssignmentMuData) userQueryData {
+func updateInsertedCandidateWithGithubUsername(tr *test.Runner, a insertAssignmentMuData) userQueryData {
 	var d userUpdateData
 
-	_, err := hasuraClient.do(updateUserWithGithubUsername, map[string]interface{}{
+	_, err := rawGraphlClient.Do(updateUserWithGithubUsername, map[string]interface{}{
 		"email":           strings.ToLower(a.Insert.CandidateEmail),
 		"github_username": strings.ToLower(testUserGithubUsername),
 	}, &d)
-	require.NoError(tr.t, err)
-	require.Len(tr.t, d.UpdateUsers.Returning, 1)
+	require.NoError(tr.T, err)
+	require.Len(tr.T, d.UpdateUsers.Returning, 1)
 
 	return d.UpdateUsers.Returning[0]
 }
 
-func assertCandidateClaims(tr *testRunner, trBusinessWithUser insertUserWithBusinessMuData, cRec *auth.UserRecord, vad validateAssignmentQueryData) bool {
+func assertCandidateClaims(tr *test.Runner, trBusinessWithUser insertUserWithBusinessMuData, cRec *auth.UserRecord, vad validateAssignmentQueryData) bool {
 	if len(vad.Users) == 0 {
 		return false
 	}
 
-	return assert.Equal(tr.t, map[string]interface{}{
+	return assert.Equal(tr.T, map[string]interface{}{
 		"https://hasura.io/jwt/claims": map[string]interface{}{
 			"x-hasura-allowed-roles":    []interface{}{"user", "candidate"},
 			"x-hasura-business-ids":     "{}",
@@ -473,43 +521,38 @@ func assertCandidateClaims(tr *testRunner, trBusinessWithUser insertUserWithBusi
 	}, cRec.CustomClaims)
 }
 
-func assertCandidateCreatedInFirebase(tr *testRunner, res insertAssignmentMuData) *auth.UserRecord {
+func assertCandidateCreatedInFirebase(tr *test.Runner, res insertAssignmentMuData) *auth.UserRecord {
 	cRec, err := firebaseClient.GetUserByEmail(context.Background(), res.Insert.CandidateEmail)
-	require.NoError(tr.t, err, "firebase user not generated")
+	require.NoError(tr.T, err, "firebase user not generated")
 
-	tr.addCleanupStep(func() error {
+	tr.AddCleanupStep(func() error {
 		return firebaseClient.DeleteUser(context.Background(), cRec.UID)
 	})
 
 	return cRec
 }
 
-func assertEmailSent(tr *testRunner, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) {
-	qr, ok := waitForEmail(tr.t, res.Insert.CandidateEmail)
+func assertEmailSent(tr *test.Runner, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) {
+	qr, ok := waitForEmail(tr.T, res.Insert.CandidateEmail)
 	if ok {
-		assert.Equal(tr.t, "<candidates@testrelay.io>", qr.Items[0].Content.Headers.From[0])
-		assert.Equal(tr.t, trBusinessWithUser.Insert.Name+" has invited you to a technical test", qr.Items[0].Content.Headers.Subject[0])
-		assert.NotContains(tr.t, qr.Items[0].Content.Body, "{{")
+		assert.Equal(tr.T, "<candidates@testrelay.io>", qr.Items[0].Content.Headers.From[0])
+		assert.Equal(tr.T, trBusinessWithUser.Insert.Name+" has invited you to a technical test", qr.Items[0].Content.Headers.Subject[0])
+		assert.NotContains(tr.T, qr.Items[0].Content.Body, "{{")
 	}
-
-	tr.addCleanupStep(func() error {
-		// TODO delete email
-		return nil
-	})
 }
 
-func assertAssignmentUpdated(tr *testRunner, cRec *auth.UserRecord, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) validateAssignmentQueryData {
+func assertAssignmentUpdated(tr *test.Runner, cRec *auth.UserRecord, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) validateAssignmentQueryData {
 	vav := validateAssignmentVars{
 		Email: strings.ToLower(res.Insert.CandidateEmail),
 		Id:    res.Insert.ID,
 	}
 	var vad validateAssignmentQueryData
 
-	actual, err := hasuraClient.do(validateAssignmentQuery, toQueryVars(tr.t, &vav), &vad)
-	if assert.Len(tr.t, vad.Users, 1) {
-		assert.NoError(tr.t, err)
+	actual, err := rawGraphlClient.Do(validateAssignmentQuery, toQueryVars(tr.T, &vav), &vad)
+	if assert.Len(tr.T, vad.Users, 1) {
+		assert.NoError(tr.T, err)
 		assert.JSONEq(
-			tr.t,
+			tr.T,
 			fmt.Sprintf(
 				`{"data":{"users":[{"id":%d,"auth_id":"%s","business_users":[{"business_id":%d,"user_type":"candidate"}]}],"assignments_by_pk":{"status":"sent","assignment_events":[{"event_type":"sent"}]}}}`,
 				vad.Users[0].Id,
@@ -519,9 +562,9 @@ func assertAssignmentUpdated(tr *testRunner, cRec *auth.UserRecord, res insertAs
 			actual)
 	}
 
-	tr.addCleanupStep(func() error {
+	tr.AddCleanupStep(func() error {
 		if len(vad.Users) > 0 {
-			_, err := hasuraClient.do(deleteUserMu, toQueryVars(tr.t, &deleteUserVars{Id: vad.Users[0].Id}), nil)
+			_, err := rawGraphlClient.Do(deleteUserMu, toQueryVars(tr.T, &deleteUserVars{Id: vad.Users[0].Id}), nil)
 			return err
 		}
 
@@ -531,7 +574,7 @@ func assertAssignmentUpdated(tr *testRunner, cRec *auth.UserRecord, res insertAs
 	return vad
 }
 
-func insertAssignment(tr *testRunner, testRepo *github.Repository, trBusinessWithUser insertUserWithBusinessMuData) insertAssignmentMuData {
+func insertAssignment(tr *test.Runner, testRepo *github.Repository, trBusinessWithUser insertUserWithBusinessMuData) insertAssignmentMuData {
 	candidateEmail := faker.Email()
 	v := insertAssignmentVars{
 		RecruiterID:    trBusinessWithUser.Insert.Creator.ID,
@@ -541,44 +584,44 @@ func insertAssignment(tr *testRunner, testRepo *github.Repository, trBusinessWit
 	}
 
 	var res insertAssignmentMuData
-	_, err := hasuraClient.do(insertAssignmentMutation, toQueryVars(tr.t, &v), &res)
-	require.NoError(tr.t, err)
+	_, err := rawGraphlClient.Do(insertAssignmentMutation, toQueryVars(tr.T, &v), &res)
+	require.NoError(tr.T, err)
 	return res
 }
 
-func createRecruiterAndBusiness(tr *testRunner, recruiterUser *auth.UserRecord) insertUserWithBusinessMuData {
+func createRecruiterAndBusiness(tr *test.Runner, recruiterUser *auth.UserRecord) insertUserWithBusinessMuData {
 	vb := insertUserWithBusinessVars{
 		Email:  recruiterUser.Email,
 		AuthID: recruiterUser.UID,
 	}
 
 	var res insertUserWithBusinessMuData
-	_, err := hasuraClient.do(insertUserWithBusiness, toQueryVars(tr.t, &vb), &res)
-	require.NoError(tr.t, err)
+	_, err := rawGraphlClient.Do(insertUserWithBusiness, toQueryVars(tr.T, &vb), &res)
+	require.NoError(tr.T, err)
 
-	tr.addCleanupStep(func() error {
+	tr.AddCleanupStep(func() error {
 		vars := deleteBusinessVars{Id: res.Insert.ID, UserId: res.Insert.Creator.ID}
-		_, err := hasuraClient.do(deleteBusinessMu, toQueryVars(tr.t, &vars), nil)
+		_, err := rawGraphlClient.Do(deleteBusinessMu, toQueryVars(tr.T, &vars), nil)
 		return err
 	})
 
 	return res
 }
 
-func createRecruiterFirebaseUser(tr *testRunner) *auth.UserRecord {
+func createRecruiterFirebaseUser(tr *test.Runner) *auth.UserRecord {
 	user := &auth.UserToCreate{}
 	user.Email(faker.Email()).Password("mypassword1234").DisplayName(faker.Name())
 	rec, err := firebaseClient.CreateUser(context.Background(), user)
-	require.NoError(tr.t, err)
+	require.NoError(tr.T, err)
 
-	tr.addCleanupStep(func() error {
+	tr.AddCleanupStep(func() error {
 		return firebaseClient.DeleteUser(context.Background(), rec.UID)
 	})
 
 	return rec
 }
 
-func generateTestRepository(tr *testRunner) *github.Repository {
+func generateTestRepository(tr *test.Runner) *github.Repository {
 	nowUnix := time.Now().Unix()
 	repoName := fmt.Sprintf("%s-%d", strings.ToLower(faker.Username()), nowUnix)
 
@@ -587,9 +630,9 @@ func generateTestRepository(tr *testRunner) *github.Repository {
 		Private:     github.Bool(true),
 		Description: github.String(repoName + " generated by e2e test runner"),
 	})
-	require.NoError(tr.t, err)
+	require.NoError(tr.T, err)
 
-	tr.addCleanupStep(func() error {
+	tr.AddCleanupStep(func() error {
 		_, err := githubClient.Repositories.Delete(context.Background(), repo.GetOwner().GetLogin(), repo.GetName())
 		return err
 	})
@@ -612,6 +655,13 @@ func waitForEmail(t *testing.T, email string) (MailhogQueryResponse, bool) {
 			time.Sleep(time.Second)
 			continue
 		}
+
+		req, err := http.NewRequest(http.MethodDelete, "http://localhost:8025/api/v1/messages", nil)
+		assert.NoError(t, err)
+
+		res, err = http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, res.StatusCode)
 
 		return data, true
 	}

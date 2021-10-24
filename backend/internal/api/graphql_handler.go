@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,8 +14,7 @@ import (
 )
 
 var (
-	QueryNameNotProvided = errors.New("no query was provided in the HTTP body")
-	verifier             = auth.FirebaseVerifier{
+	verifier = auth.FirebaseVerifier{
 		ProjectID: "testrelay-323914",
 	}
 )

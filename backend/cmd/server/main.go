@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -82,7 +84,10 @@ func newMailer(config options.Config) mail.SMTPMailer {
 }
 
 func newLogger(config options.Config) *zap.SugaredLogger {
-	zlog, _ := zap.NewDevelopment()
+	c := zap.NewDevelopmentConfig()
+	c.DisableStacktrace = true
+	zlog, _ := c.Build()
+
 	if config.APPEnv == "production" {
 		zlog, _ = zap.NewProduction()
 	}
@@ -162,7 +167,9 @@ func run() {
 	r.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/healthz" {
-				logger.Info(r.URL.Path)
+				b, _ := io.ReadAll(r.Body)
+				r.Body = io.NopCloser(bytes.NewBuffer(b))
+				logger.Info(r.URL.Path, string(b))
 			}
 
 			h.ServeHTTP(w, r)

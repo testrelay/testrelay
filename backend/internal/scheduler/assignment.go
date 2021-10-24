@@ -59,23 +59,24 @@ func NewHasuraAssignmentScheduler(baseURL, token, webhookURL string) HasuraAssig
 }
 
 func (h HasuraAssignmentScheduler) Stop(id string) error {
+	// this method currently doesn't work, update to latest hasura for event deletion
 	body := bytes.NewBufferString(fmt.Sprintf(`{
-    "type": "delete",
-    "args": {
-      "table": {
-        "name": "hdb_scheduled_events",
-        "schema": "hdb_catalog",
-      },
-      "where": {
-        "comment": {
-          "$eq": %q,
-        },
-      },
-    },
-  }`, id))
+	"type": "delete",
+	"args": {
+		"table": {
+			"name": "hdb_scheduled_events",
+			"schema": "hdb_catalog"
+		},
+		"where": {
+			"comment": {
+				"$eq": %q
+			}
+		}
+	}
+}`, id))
 
 	res, err := h.client.Post(
-		h.baseURL+"/v1/metadata",
+		h.baseURL+"/v1/query",
 		"application/json",
 		body,
 	)

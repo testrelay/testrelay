@@ -4,17 +4,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -24,11 +19,12 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
 	"github.com/testrelay/testrelay/backend/internal/httputil"
+	"github.com/testrelay/testrelay/backend/internal/store/graphql"
+	"github.com/testrelay/testrelay/backend/internal/test"
 )
 
 var (
@@ -36,113 +32,20 @@ var (
 	githubTestOwner        = "the-foreman"
 )
 
-type graphErrors []struct {
-	Message   string
-	Locations []struct {
-		Line   int
-		Column int
-	}
-}
-
-// Error implements error interface.
-func (e graphErrors) Error() string {
-	b := strings.Builder{}
-	for _, err := range e {
-		b.WriteString(fmt.Sprintf("Message: %s, Locations: %+v", err.Message, err.Locations))
-	}
-	return b.String()
-}
-
-type graphQLClient struct {
-	client  *http.Client
-	baseURL string
-}
-
-func (c graphQLClient) do(query string, variables map[string]interface{}, v interface{}) (string, error) {
-	in := struct {
-		Query     string                 `json:"query"`
-		Variables map[string]interface{} `json:"variables,omitempty"`
-	}{
-		Query:     query,
-		Variables: variables,
-	}
-
-	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(in)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := c.client.Post(c.baseURL, "application/json", &buf)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("non-200 OK status code: %v body: %q", resp.Status, body)
-	}
-	var out struct {
-		Data   *json.RawMessage
-		Errors graphErrors
-	}
-
-	body, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal(body, &out)
-	if err != nil {
-		return "", err
-	}
-
-	if out.Data != nil && v != nil {
-		err := json.Unmarshal(*out.Data, &v)
-		if err != nil {
-			return string(body), err
-		}
-	}
-
-	if len(out.Errors) > 0 {
-		b, _ := json.Marshal(out.Errors)
-		return string(b), out.Errors
-	}
-
-	return string(body), nil
-}
-
-type testRunner struct {
-	t       *testing.T
-	cleanup []func() error
-	mu      *sync.Mutex
-}
-
-func (tr *testRunner) addCleanupStep(c func() error) {
-	tr.mu.Lock()
-	defer tr.mu.Unlock()
-
-	tr.cleanup = append(tr.cleanup, c)
-}
-
-func (tr *testRunner) clean() {
-	tr.t.Helper()
-
-	for _, f := range tr.cleanup {
-		assert.NoError(tr.t, f())
-	}
-}
-
 var (
-	githubClient   *github.Client
-	hasuraClient   graphQLClient
-	firebaseClient *firebaseAuth.Client
+	githubClient    *github.Client
+	rawGraphlClient test.GraphQLClient
+	hasuraClient    *graphql.HasuraClient
+	firebaseClient  *firebaseAuth.Client
 )
 
 func TestMain(m *testing.M) {
-	err := godotenv.Overload("test_assets/e2e.env")
+	err := godotenv.Overload("./test_assets/e2e.env")
 	if err != nil {
 		log.Fatal("error loading e2e.env file, please specify")
 	}
 
-	initHasuraClient()
+	initGraphqlClients()
 	initGithubClient()
 	initFirebaseAuth()
 
@@ -165,10 +68,6 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// You can't defer this because os.Exit doesn't care for defer
-	//if err := pool.Purge(pg); err != nil {
-	//	log.Fatalf("Could not purge resource: %s", err)
-	//}
-
 	os.Exit(code)
 }
 
@@ -199,13 +98,15 @@ func initGithubClient() {
 	githubClient = github.NewClient(tc)
 }
 
-func initHasuraClient() {
-	hasuraClient = graphQLClient{
-		baseURL: os.Getenv("HASURA_URL") + "/v1/graphql",
-		client: &http.Client{
+func initGraphqlClients() {
+	rawGraphlClient = test.GraphQLClient{
+		BaseURL: os.Getenv("HASURA_URL") + "/v1/graphql",
+		Client: &http.Client{
 			Transport: &httputil.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
 		},
 	}
+
+	hasuraClient = graphql.NewClient(os.Getenv("HASURA_URL")+"/v1/graphql", os.Getenv("HASURA_TOKEN"))
 }
 
 func waitForPort(port int) error {

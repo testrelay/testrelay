@@ -16,12 +16,8 @@ type EventCreator interface {
 type ReviewerCollector interface {
 	Reviewers(assignmentID int) ([]string, error)
 }
-
 type RunData struct {
-	ID         int             `json:"id"`
-	ScheduleAt time.Time       `json:"schedule_at"`
-	Duration   int             `json:"duration"`
-	Data       WithTestDetails `json:"data"`
+	Data WithTestDetails `json:"data"`
 }
 
 type Time func() time.Time
