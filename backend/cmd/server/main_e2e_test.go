@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	testUserGithubUsername = "hugorut"
+	testUserGithubUsername = "testrelaycandidate"
 	githubTestOwner        = "the-foreman"
 )
 
@@ -121,42 +121,4 @@ func waitForPort(port int) error {
 	}
 
 	return fmt.Errorf("port %d was not open", port)
-}
-
-func bootContainers() {
-	//pool, err := dockertest.NewPool("")
-	//if err != nil {
-	//	log.Fatalf("Could not connect to docker: %s", err)
-	//}
-	//
-	//pg, err := pool.Run("postgres:12", "latest", []string{"POSTGRES_PASSWORD=postgrespassword"})
-	//if err != nil {
-	//	log.Fatalf("Could not start resource pg: %s", err)
-	//}
-	//
-	//// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
-	//if err := pool.Retry(func() error {
-	//	var err error
-	//	connStr := "user=postgres dbname=postgres password=postgrespassword ssl-mode=skip-verify"
-	//	db, err = sql.Open("postgres", connStr)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	return db.Ping()
-	//}); err != nil {
-	//	log.Fatalf("Could not connect to pg: %s", err)
-	//}
-	//
-	//// add host.docker.internal as the application URL
-	//hasura, err := pool.Run("hasura/graphql-engine:v2.0.9.cli-migrations-v3", "latest", []string{"POSTGRES_PASSWORD=postgrespassword"})
-	//if err != nil {
-	//	log.Fatalf("Could not start resource pg: %s", err)
-	//}
-	//
-	//// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
-	//if err := pool.Retry(func() error {
-	//	// hasura retry functionality
-	//}); err != nil {
-	//	log.Fatalf("Could not connect to pg: %s", err)
-	//}
 }

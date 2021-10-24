@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -23,106 +24,6 @@ import (
 	http2 "github.com/testrelay/testrelay/backend/internal/events/http"
 	"github.com/testrelay/testrelay/backend/internal/test"
 )
-
-var insertAssignmentMutation = `
-mutation (
-	$email: String!,
-	$name: String!,
-	$choose_until: date!,
-	$time_limit: Int!,
-	$recruiter_id: Int!,
-	$business_id: Int!,
-	$test_github_repo: String!,
-	$test_name: String!,
-	$test_window: Int,
-	$test_time_limit: Int!,
-	$status: assignment_status_enum = sending
-) { 
-insert_assignments_one (
-	object: {
-		candidate_email: $email, 
-		candidate_name: $name, 
-		choose_until: $choose_until, 
-		time_limit: $time_limit, 
-		recruiter_id: $recruiter_id
-		status: $status
-		test: {
-			data: {
-				user_id: $recruiter_id,
-				business_id: $business_id,
-				github_repo: $test_github_repo, 
-				name: $test_name, 
-				test_window: $test_window, 
-				time_limit: $test_time_limit
-			}
-		}
-	}
-) {
-	id
-	candidate_email
-}
-}`
-
-var insertUserWithBusiness = `
-mutation ($auth_id: String!, $email: String!, $business_name: String!) {
-  insert_businesses_one(
-	object: {
-		name: $business_name, 
-		creator: {
-			data: {
-				email: $email, 
-				auth_id: $auth_id
-			}
-		}
-	}
-) {
-    id
-	name
-    creator {
-      id
-    }
-  }
-}
-
-`
-
-var validateAssignmentQuery = `
-query ($email: String!, $id: Int!) {
-  users(where: {email: {_eq: $email}}) {
-    id
-    auth_id
-    business_users {
-      business_id
-      user_type
-    }
-  }
-  assignments_by_pk(id: $id) {
-    status
-    assignment_events {
-      event_type
-    }
-  }
-}
-`
-
-var deleteBusinessMu = `
-mutation ($id: Int!, $user_id: Int!) {
-  delete_businesses_by_pk(id: $id) {
-    id
-  }
-  delete_users_by_pk(id: $user_id) {
-    id
-  }
-}
-`
-
-var deleteUserMu = `
-mutation ($id: Int!) {
-  delete_users_by_pk(id: $id) {
-    id
-  }
-}
-`
 
 type deleteUserVars struct {
 	Id int `json:"id" faker:"-"`
@@ -240,7 +141,9 @@ type MailhogQueryResponse struct {
 func TestAssignments(t *testing.T) {
 	t.Run("/events", func(t *testing.T) {
 		t.Run("insert assignment event", func(t *testing.T) {
-			//var candidateRepo *github.Repository
+			var candidateRepo *github.Repository
+			var candidate userQueryData
+
 			tr := test.NewRunner(t)
 			defer tr.Clean()
 
@@ -258,13 +161,13 @@ func TestAssignments(t *testing.T) {
 			vad := assertAssignmentUpdated(tr, cRec, assignmentInsertData, trBusinessWithUser)
 			assertCandidateClaims(tr, trBusinessWithUser, cRec, vad)
 			t.Run("insert assignment_events event", func(t *testing.T) {
-				candidate := updateInsertedCandidateWithGithubUsername(tr, assignmentInsertData)
+				candidate = updateInsertedCandidateWithGithubUsername(tr, assignmentInsertData)
 				now := time.Now()
 				updateAssignmentWithTimeChosen(tr, assignmentInsertData, now.Format("15:04"), now.AddDate(0, 0, 4).Format("2006-01-02"))
 				insertAssignmentEvent(tr, assignmentInsertData, candidate, "scheduled")
 
 				assignmentDetails := waitForAssignmentDetails(tr, assignmentInsertData)
-				assertGithubRepoCreated(tr, assignmentDetails, trBusinessWithUser)
+				candidateRepo = assertGithubRepoCreated(tr, assignmentDetails, trBusinessWithUser)
 				assertEventScheduled(tr, assignmentDetails)
 			})
 
@@ -278,9 +181,10 @@ func TestAssignments(t *testing.T) {
 				})
 
 				t.Run("init", func(t *testing.T) {
-					// call one off handler with send at now and payload init
-					// check github uploaded
-					// cehck assignment_events
+					step := "init"
+					sendStepPayload(t, step, fullAssignment)
+					assertHasCommits(t, candidateRepo.GetOwner().GetLogin(), candidateRepo.GetName())
+					assertAssignmentEvent(t, fullAssignment.ID, candidate.ID, "inprogress")
 				})
 
 				t.Run("end", func(t *testing.T) {
@@ -299,13 +203,52 @@ func TestAssignments(t *testing.T) {
 	})
 }
 
+var assignmentEventQuery = `
+query FetchAssignment(
+	$event_type: assignment_status_enum!
+	$assignment_id: Int!
+	$user_id: Int!
+) {
+	assignment_events(
+		where: {
+			_and: {
+				assignment_id: { _eq: $assignment_id }
+				event_type: { _eq: $event_type }
+				user_id: { _eq: $user_id }
+			}
+		}
+	) {
+		id
+	}
+}
+`
+
+type assignmentEventsQueryData struct {
+	Data []struct {
+		ID int `json:"id"`
+	} `json:"assignment_events"`
+}
+
+func assertAssignmentEvent(t *testing.T, assignmentID int, userID int, eventType string) {
+	var d assignmentEventsQueryData
+	_, err := rawGraphlClient.Do(assignmentEventQuery, map[string]interface{}{
+		"assignment_id": assignmentID,
+		"user_id":       userID,
+		"event_type":    eventType,
+	}, &d)
+	require.NoError(t, err)
+	require.Len(t, d.Data, 1)
+}
+
+var specialChar = regexp.MustCompile(`[=\r\n]`)
+
 func assertWarningEmailSent(t *testing.T, fullAssignment assignment.WithTestDetails, tr *test.Runner, trBusinessWithUser insertUserWithBusinessMuData) {
 	emails, ok := waitForEmail(t, fullAssignment.Candidate.Email)
 	require.True(t, ok)
 	assert.Equal(tr.T, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
 	assert.Equal(tr.T, "5 minute reminder for your "+trBusinessWithUser.Insert.Name+" assignment", emails.Items[0].Content.Headers.Subject[0])
 	assert.NotContains(tr.T, emails.Items[0].Content.Body, "{{")
-	assert.Contains(tr.T, emails.Items[0].Content.Body, fullAssignment.GithubRepoURL)
+	assert.Contains(tr.T, specialChar.ReplaceAllString(emails.Items[0].Content.Body, ""), fullAssignment.GithubRepoURL)
 }
 
 func sendStepPayload(t *testing.T, step string, fullAssignment assignment.WithTestDetails) {
@@ -367,16 +310,16 @@ func assertGithubRepoCreated(tr *test.Runner, details assignmentTestDetailsData,
 	return r
 }
 
-func assertHasCommits(tr *test.Runner, owner string, repoName string) {
+func assertHasCommits(t *testing.T, owner string, repoName string) {
 	commits, _, err := githubClient.Repositories.ListCommits(context.Background(), owner, repoName, nil)
-	require.NoError(tr.T, err)
-	require.Len(tr.T, commits, 1)
+	require.NoError(t, err)
+	require.Len(t, commits, 1)
 
 	c := commits[0].GetCommit()
-	assert.Equal(tr.T, "start test", c.GetMessage())
+	assert.Equal(t, "start test", c.GetMessage())
 
-	tree := c.GetTree()
-	assert.Len(tr.T, tree.Entries, 2)
+	tree, _, err := githubClient.Git.GetTree(context.Background(), owner, repoName, c.GetTree().GetSHA(), true)
+	assert.NoError(t, err)
 
 	filenames := make([]string, 0, 2)
 	for _, e := range tree.Entries {
@@ -385,8 +328,8 @@ func assertHasCommits(tr *test.Runner, owner string, repoName string) {
 		}
 	}
 
-	assert.Contains(tr.T, filenames, "test/index.txt")
-	assert.Contains(tr.T, filenames, "test.txt")
+	assert.Contains(t, filenames, "test/index.txt")
+	assert.Contains(t, filenames, "echo.txt")
 }
 
 var fetchAssignmentTestDetails = `
@@ -541,6 +484,33 @@ func assertEmailSent(tr *test.Runner, res insertAssignmentMuData, trBusinessWith
 	}
 }
 
+var validateAssignmentQuery = `
+query ($email: String!, $id: Int!) {
+  users(where: {email: {_eq: $email}}) {
+    id
+    auth_id
+    business_users {
+      business_id
+      user_type
+    }
+  }
+  assignments_by_pk(id: $id) {
+    status
+    assignment_events {
+      event_type
+    }
+  }
+}
+`
+
+var deleteUserMu = `
+mutation ($id: Int!) {
+  delete_users_by_pk(id: $id) {
+    id
+  }
+}
+`
+
 func assertAssignmentUpdated(tr *test.Runner, cRec *auth.UserRecord, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) validateAssignmentQueryData {
 	vav := validateAssignmentVars{
 		Email: strings.ToLower(res.Insert.CandidateEmail),
@@ -574,6 +544,45 @@ func assertAssignmentUpdated(tr *test.Runner, cRec *auth.UserRecord, res insertA
 	return vad
 }
 
+var insertAssignmentMutation = `
+mutation (
+	$email: String!,
+	$name: String!,
+	$choose_until: date!,
+	$time_limit: Int!,
+	$recruiter_id: Int!,
+	$business_id: Int!,
+	$test_github_repo: String!,
+	$test_name: String!,
+	$test_window: Int,
+	$test_time_limit: Int!,
+	$status: assignment_status_enum = sending
+) { 
+insert_assignments_one (
+	object: {
+		candidate_email: $email, 
+		candidate_name: $name, 
+		choose_until: $choose_until, 
+		time_limit: $time_limit, 
+		recruiter_id: $recruiter_id
+		status: $status
+		test: {
+			data: {
+				user_id: $recruiter_id,
+				business_id: $business_id,
+				github_repo: $test_github_repo, 
+				name: $test_name, 
+				test_window: $test_window, 
+				time_limit: $test_time_limit
+			}
+		}
+	}
+) {
+	id
+	candidate_email
+}
+}`
+
 func insertAssignment(tr *test.Runner, testRepo *github.Repository, trBusinessWithUser insertUserWithBusinessMuData) insertAssignmentMuData {
 	candidateEmail := faker.Email()
 	v := insertAssignmentVars{
@@ -588,6 +597,40 @@ func insertAssignment(tr *test.Runner, testRepo *github.Repository, trBusinessWi
 	require.NoError(tr.T, err)
 	return res
 }
+
+var deleteBusinessMu = `
+mutation ($id: Int!, $user_id: Int!) {
+  delete_businesses_by_pk(id: $id) {
+    id
+  }
+  delete_users_by_pk(id: $user_id) {
+    id
+  }
+}
+`
+
+var insertUserWithBusiness = `
+mutation ($auth_id: String!, $email: String!, $business_name: String!) {
+  insert_businesses_one(
+	object: {
+		name: $business_name, 
+		creator: {
+			data: {
+				email: $email, 
+				auth_id: $auth_id
+			}
+		}
+	}
+) {
+    id
+	name
+    creator {
+      id
+    }
+  }
+}
+
+`
 
 func createRecruiterAndBusiness(tr *test.Runner, recruiterUser *auth.UserRecord) insertUserWithBusinessMuData {
 	vb := insertUserWithBusinessVars{
