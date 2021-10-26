@@ -3,9 +3,9 @@ import { getAuth, signOut } from "firebase/auth";
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import firebase from "../auth/firebase";
-import { useFirebaseAuth } from "../auth/firebase-hooks";
-import { useBusiness } from "./business/hook";
-import { GET_BUSINESS } from "./business/queries";
+import { useFirebaseAuth } from "../recruiter/auth/firebase-hooks";
+import { useBusiness } from "../recruiter/components/business/hook";
+import { GET_BUSINESS } from "../recruiter/components/business/queries";
 import Loading from "./loading";
 
 
