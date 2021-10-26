@@ -36,7 +36,7 @@ If you're looking to develop locally you'll need a backend stack up and running.
 
 Then `mv .env.example .env` add the graphql url to the `.env` in the `REACT_APP_GRAPHQL_URL=` variable. You'll see from the `.env` file there are a number of other dependencies that
 you'll have to add there, primarily details to a generated firebase account. At the moment there is an [open ticket](https://github.com/testrelay/testrelay/issues/1#issue-1035924344)
-to improve and document the process of provisioning dependencies for local services. In the meantime, please reach out to us on [slack](https://testrelay.io/slack) for guidance.
+to improve and document the process of provisioning dependencies for local services. In the meantime, please reach out to us on [slack](https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ) for guidance.
 
 For further information on how to development and contributing see the [contributing](../CONTRIBUTING.md) file. 
 

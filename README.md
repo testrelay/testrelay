@@ -1,7 +1,7 @@
 <img width="100%" src="https://github.com/testrelay/testrelay/blob/master/media/TestRelayHeader.png">
 
 <p align="center">
-    <a href="https://slack.testrelay.io">
+    <a href="https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ">
         <img src="https://img.shields.io/badge/chat-on%20slack-blue.svg?style=flat&logo=slack"  alt="slack"/> 
     </a>
     <a href="https://github.com/pomerium/pomerium/actions?query=workflow%3ARelease">
@@ -39,7 +39,7 @@ TestRelay comes with a ton of features out the box, here's a list of the main on
 The quickest way to get started with TestRelay is to use the managed version at [testrelay.io](https://testrelay.io). It's completely free and takes care of any infrastructure headache.
 
 Running a self-hosted version of TestRelay involves provisioning a number of accounts/credentials with 3rd party providers. There's an [open issue](https://github.com/testrelay/testrelay/issues/1#issue-1035924344) focused on improving documentation
-and support on running a self-hosted TestRelay. In the meantime feel free to reach out to directly on [slack](https://testrelay.io/slack), we'll be happy to help you walk through the process of deploying independently.
+and support on running a self-hosted TestRelay. In the meantime feel free to reach out to directly on [slack](https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ), we'll be happy to help you walk through the process of deploying independently.
 
 ## Contributing
 
