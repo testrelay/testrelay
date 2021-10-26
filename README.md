@@ -38,9 +38,8 @@ TestRelay comes with a ton of features out the box, here's a list of the main on
 
 The quickest way to get started with TestRelay is to use the managed version at [testrelay.io](https://testrelay.io). It's completely free and takes care of any infrastructure headache.
 
-Running TestRelay in your own infrastructure is possible, however, it's a bit complicated at the moment due third party dependencies. There's an [open issue]() which is targeted at improving this and making it super simple for you to run independently.
-
-In the meantime feel free to reach out to directly on [slack](), we'll be happy to help you walk through the process of deploying independently.
+Running a self-hosted version of TestRelay involves provisioning a number of accounts/credentials with 3rd party providers. There's an [open issue](https://github.com/testrelay/testrelay/issues/1#issue-1035924344) focused on improving documentation
+and support on running a self-hosted TestRelay. In the meantime feel free to reach out to directly on [slack](https://testrelay.io/slack), we'll be happy to help you walk through the process of deploying independently.
 
 ## Contributing
 

@@ -1,5 +1,10 @@
 version: '3.6'
 services:
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
   backend:
     build:
       context: .
@@ -14,7 +19,8 @@ services:
       MG_API_KEY: "key-4bae313b78a19562397e877c70eee126"
       MG_URL: "https://api.mailgun.net/v3"
       HASURA_URL: "http://graphql-engine"
-      MG_DOMAIN: "sandbox9044990ab6be4dfd8c254585ab26d0af.mailgun.org" # replace with your mailgun sandbox
+      SMTP_HOST: "localhost"
+      SMTP_PORT: "1025"
       HASURA_TOKEN: "myadminsecretkey"
       GITHUB_ACCESS_TOKEN: ""  # replace with generated github access token
       GITHUB_PRIVATE_KEY: "" # replace with generated github private key
@@ -38,7 +44,7 @@ services:
       - ./hasura/metadata:/hasura-metadata
     restart: always
     environment:
-      BACKEND_URL: backend
+      BACKEND_URL: http://backend:8000
       HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
