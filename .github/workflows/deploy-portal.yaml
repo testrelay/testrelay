@@ -1,0 +1,39 @@
+name: Upload site
+
+on:
+  push:
+    tags:
+      - "v*-portal"
+
+defaults:
+  run:
+    shell: bash
+    working-directory: portal
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - uses: jeanlescure/react-deploy-to-s3-action@main
+        with:
+          args: --acl public-read --follow-symlinks --delete
+        env:
+          NODE_ENV: production
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_PORTAL_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.AWS_PORTAL_CLOUDFRONT_DISTRIBUTION_ID }}
+          AWS_REGION: eu-west-2
+          SOURCE_DIR: public
+      - uses: jeanlescure/react-deploy-to-s3-action@main
+        with:
+          args: --acl public-read --follow-symlinks --delete
+        env:
+          NODE_ENV: production
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_CANDIDATE_PORTAL_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.AWS_CANDIDATE_PORTAL_CLOUDFRONT_DISTRIBUTION_ID }}
+          AWS_REGION: eu-west-2
+          SOURCE_DIR: public
