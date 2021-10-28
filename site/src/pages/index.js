@@ -11,7 +11,7 @@ const IndexPage = () => {
       <Helmet title="Test Relay" />
       <main>
         <div className="px-4 py-2 bg-blue-600 text-center shadow">
-          <span className="text-white mx-auto">We're in <span className="text-yellow-500">beta</span>, signup for early access now</span>
+          <span className="text-white mx-auto">We're in <span className="text-yellow-500">alpha</span>, signup for early access now</span>
         </div>
         <div className="container mx-auto p-4">
           <div className="flex justify-between flex- content-center items-center py-2">
