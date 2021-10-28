@@ -50,6 +50,13 @@ jobs:
           ECS_TASK: ${{ secrets.ECS_TASK }}
         run: |
           aws ecs describe-task-definition --task-definition $ECS_TASK --query $ECS_TASK > task-definition.json
+          ls
+
+      - name: Debug
+        env:
+          ECS_TASK: ${{ secrets.ECS_TASK }}
+        run: |
+          ls
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
