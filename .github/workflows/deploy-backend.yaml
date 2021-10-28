@@ -48,6 +48,6 @@ jobs:
       - name: Deploy Amazon ECS task definition
         env:
           ECR_CLUSTER: ${{ secrets.ECR_CLUSTER }}
-          ECS_SERVICE: ${{ secrets.ECR_SERVICE }}
+          ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
         run: |
           aws ecs update-service --cluster $ECR_CLUSTER --service $ECS_SERVICE --force-new-deployment
