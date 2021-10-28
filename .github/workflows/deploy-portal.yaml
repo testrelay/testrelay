@@ -35,7 +35,7 @@ jobs:
           REACT_APP_GITHUB_CLIENT_ID: ${{secrets.REACT_APP_GITHUB_CLIENT_ID}}
           WORKING_DIR: portal
           AWS_REGION: eu-west-2
-          SOURCE_DIR: public
+          SOURCE_DIR: build
       - uses: hugorut/react-deploy-to-s3-action@main
         with:
           args: --acl public-read --follow-symlinks --delete
@@ -56,4 +56,4 @@ jobs:
           REACT_APP_GITHUB_CLIENT_ID: ${{secrets.REACT_APP_GITHUB_CLIENT_ID}}
           WORKING_DIR: portal
           AWS_REGION: eu-west-2
-          SOURCE_DIR: public
+          SOURCE_DIR: build
