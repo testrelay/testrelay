@@ -56,13 +56,13 @@ jobs:
         env:
           ECS_TASK: ${{ secrets.ECS_TASK }}
         run: |
-          ls
+          pwd
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./task-definition.json
+          task-definition: backend/task-definition.json
           container-name: ${{ secrets.ECS_TASK }}
           image: ${{ steps.build-image.outputs.image }}
 
