@@ -49,7 +49,7 @@ jobs:
         env:
           ECS_TASK: ${{ secrets.ECS_TASK }}
         run: |
-          aws ecs describe-task-definition --task-definition $ECS_TASK > task-definition.json
+          aws ecs describe-task-definition --task-definition $ECS_TASK --query taskDefinition > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
