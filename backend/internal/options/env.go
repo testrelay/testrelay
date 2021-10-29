@@ -23,9 +23,11 @@ type Config struct {
 
 	GithubAccessToken        string
 	GithubPrivateKeyLocation string
+	GithubPrivateKey         string
 	GithubAppID              int64
 
 	GoogleServiceAccountLocation string
+	GoogleServiceAccount         string
 }
 
 func ConfigFromEnv() (Config, error) {
@@ -43,9 +45,25 @@ func ConfigFromEnv() (Config, error) {
 		HasuraURL:                    envOrDefaultString("HASURA_URL", "hasura"),
 		HasuraToken:                  e.envOrError("HASURA_TOKEN"),
 		GithubAccessToken:            e.envOrError("GITHUB_ACCESS_TOKEN"),
-		GithubPrivateKeyLocation:     e.envOrError("GITHUB_PRIVATE_KEY"),
+		GithubPrivateKeyLocation:     envOrDefaultString("GITHUB_PRIVATE_KEY_LOCATION", "github-private-key.pem"),
+		GithubPrivateKey:             os.Getenv("GITHUB_PRIVATE_KEY"),
 		GithubAppID:                  e.envOrErrorInt("GITHUB_APP_ID"),
-		GoogleServiceAccountLocation: e.envOrError("GOOGLE_SERVICE_ACC"),
+		GoogleServiceAccountLocation: envOrDefaultString("GOOGLE_SERVICE_ACC_LOCATION", "service-acc.json"),
+		GoogleServiceAccount:         os.Getenv("GOOGLE_SERVICE_ACC"),
+	}
+
+	if c.GoogleServiceAccount != "" {
+		err := os.WriteFile(c.GoogleServiceAccountLocation, []byte(c.GoogleServiceAccount), os.ModePerm)
+		if err != nil {
+			return Config{}, fmt.Errorf("could not write provided service acc to file %w", err)
+		}
+	}
+
+	if c.GithubPrivateKey != "" {
+		err := os.WriteFile(c.GithubPrivateKeyLocation, []byte(c.GithubPrivateKey), os.ModePerm)
+		if err != nil {
+			return Config{}, fmt.Errorf("could not write provided github account to file %w", err)
+		}
 	}
 
 	return c, e.Error()
