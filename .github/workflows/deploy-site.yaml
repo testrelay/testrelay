@@ -2,8 +2,10 @@ name: Upload site
 
 on:
   push:
-    tags:
-      - "v*-site"
+    paths:
+      - 'site/**'
+    branches:
+      - "master"
 
 defaults:
   run:
