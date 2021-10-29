@@ -26,7 +26,7 @@ services:
       - ./hasura/metadata:/hasura-metadata
     restart: always
     environment:
-      BACKEND_URL: http://host.docker.internal:8000
+      BACKEND_URL: http://172.17.0.1:8000
       HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"

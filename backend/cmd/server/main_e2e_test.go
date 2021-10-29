@@ -28,9 +28,9 @@ import (
 )
 
 var (
-	testUserGithubUsername = "testrelaycandidate"
+	testUserGithubUsername     = "testrelaycandidate"
 	testReviewerGithubUsername = "testrelayrecruiter"
-	githubTestOwner        = "the-foreman"
+	githubTestOwner            = "the-foreman"
 )
 
 var (
@@ -76,7 +76,7 @@ func initFirebaseAuth() {
 	app, err := firebase.NewApp(
 		context.Background(),
 		nil,
-		option.WithCredentialsFile(os.Getenv("GOOGLE_SERVICE_ACC")),
+		option.WithCredentialsFile(os.Getenv("GOOGLE_SERVICE_ACC_LOCATION")),
 	)
 	if err != nil {
 		log.Fatalf("error initializing firebase app: %v", err)

@@ -84,7 +84,7 @@ func (a Auth0Verifier) getPemCert(token *jwt.Token) (string, error) {
 		return cert, err
 	}
 
-	for k, _ := range jwks.Keys {
+	for k := range jwks.Keys {
 		if token.Header["kid"] == jwks.Keys[k].Kid {
 			cert = "-----BEGIN CERTIFICATE-----\n" + jwks.Keys[k].X5c[0] + "\n-----END CERTIFICATE-----"
 		}
@@ -97,7 +97,6 @@ func (a Auth0Verifier) getPemCert(token *jwt.Token) (string, error) {
 
 	return cert, nil
 }
-
 
 // CertsAPIEndpoint is endpoint of getting Public Key.
 var CertsAPIEndpoint = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
@@ -131,7 +130,7 @@ func getCertificate(kid string) ([]byte, error) {
 	}
 	certString := certs[kid]
 	cert := []byte(certString)
-	return cert,  err
+	return cert, err
 }
 
 // GetCertificateFromToken returns cert from token.
@@ -147,7 +146,6 @@ func GetCertificateFromToken(token *jwt.Token) ([]byte, error) {
 	}
 	return GetCertificate(kidString)
 }
-
 
 func readPublicKey(cert []byte) (*rsa.PublicKey, error) {
 	publicKeyBlock, _ := pem.Decode(cert)
