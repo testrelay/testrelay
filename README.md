@@ -34,6 +34,12 @@ TestRelay comes with a ton of features out the box, here's a list of the main on
 - **Candidate Portal** - Provide candidates a simple interface for managing their upcoming test and make sure they notify you about any scheduling changes.
 - **Secure Test Environments** - Automated access control to generated technical test repos. 
 
+---
+
+> **Note**: TestRelay is currently in **alpha** which is a fancy way of saying... *"there will be bugs!"* You can help us fix problems quickly by: 
+> 1. Opening a [Github issue](https://github.com/testrelay/testrelay/issues) detailing any bugs you find 
+> 2. Contributing with development effort, see [contributing guidelines](./CONTRIBUTING.md) for more info
+> 3. Giving your thoughts on how we can improve the project over on [slack](https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ)
 ## Get started
 
 The quickest way to get started with TestRelay is to use the managed version at [testrelay.io](https://testrelay.io). It's completely free and takes care of any infrastructure headache.
@@ -45,7 +51,7 @@ and support on running a self-hosted TestRelay. In the meantime feel free to rea
 
 Issues and pull requests are welcome! For development details, see the [contributing](CONTRIBUTING.md) guide. For major changes, please open an issue first to discuss what you would like to change. 
 
-[Join our community Slack channel](https://testrelay.io/slack) for one-2-one support with contributing, we are to help you get started.
+[Join our community Slack channel](https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ) for one-2-one support with contributing, we are to help you get started.
 
 ## License
 
