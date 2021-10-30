@@ -24,8 +24,6 @@ type StartInput struct {
 	Data       interface{} `json:"data"`
 }
 
-
-
 type SchedulerClient interface {
 	Stop(id string) error
 	Start(input StartInput) (string, error)

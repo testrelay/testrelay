@@ -78,8 +78,8 @@ func (c GithubClient) CreateRepo(bName, username string, id int) (string, error)
 }
 
 var (
-	repl                     = regexp.MustCompile("https://github.com/")
-	grepl                    = regexp.MustCompile("\\.git")
+	repl  = regexp.MustCompile("https://github.com/")
+	grepl = regexp.MustCompile("\\.git")
 
 	ErrorAlreadyCollaborator = errors.New("already collaborator")
 )

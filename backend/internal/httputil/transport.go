@@ -16,7 +16,7 @@ func (t *BearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // KeyTransport adds a keyed header to the request
 type KeyTransport struct {
-	Key string
+	Key   string
 	Value string
 }
 
