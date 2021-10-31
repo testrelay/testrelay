@@ -2,8 +2,10 @@ name: Deploy backend
 
 on:
   push:
-    tags:
-      - "v*-backend"
+    branches:
+      - "master"
+    paths:
+      - "backend/**"
 
 defaults:
   run:

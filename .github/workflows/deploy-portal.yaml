@@ -2,8 +2,10 @@ name: Upload portal
 
 on:
   push:
-    tags:
-      - "v*-portal"
+    branches:
+      - "master"
+    paths:
+      - "portal/**"
 
 defaults:
   run:
