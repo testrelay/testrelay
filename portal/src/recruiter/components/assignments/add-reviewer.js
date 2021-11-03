@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import CreatableSelect from 'react-select/creatable';
-import { GET_USERS } from "../users/queries";
-import { getFunctions, httpsCallable } from "@firebase/functions";
+import {GET_USERS} from "../users/queries";
+import {getFunctions, httpsCallable} from "@firebase/functions";
 import firebase from "../../../auth/firebase";
-import { useBusiness } from "../business/hook";
-import { useQuery } from '@apollo/client';
-import { AlertError } from '../../../components/alerts';
+import {useBusiness} from "../business/hook";
+import {useQuery} from '@apollo/client';
+import {AlertError} from '../../../components/alerts';
 
 const AddReviewer = (props) => {
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState([]);
     const [error, setError] = useState(null);
     const [vals, setVals] = useState([]);
-    const { selected } = useBusiness();
+    const {selected} = useBusiness();
 
-    const { data, loading: queryLoading } = useQuery(GET_USERS, {
+    const {data, loading: queryLoading} = useQuery(GET_USERS, {
         fetchPolicy: 'network-only',
         variables: {
             business_id: selected.id
@@ -24,7 +24,7 @@ const AddReviewer = (props) => {
     useEffect(() => {
         if (data) {
             const options = data.users.map((e) => {
-                return { value: e.id, label: e.email };
+                return {value: e.id, label: e.email};
             })
 
             setUsers(options);
@@ -38,7 +38,9 @@ const AddReviewer = (props) => {
     const handleChange = (options) => {
         setVals(options);
 
-        props.reviewerChange(options.map(e => { return { user_id: e.value } }));
+        props.reviewerChange(options.map(e => {
+            return {user_id: e.value}
+        }));
     };
 
     const handleCreate = async (value) => {
@@ -48,10 +50,9 @@ const AddReviewer = (props) => {
         const invite = httpsCallable(functions, "inviteUser");
 
         try {
-            const data = await invite({ email: value, business_name: selected.name, business_id: selected.id });
-            console.log('data', data);
-            setVals([...vals, { id: data.id }])
-            setUsers([...vals, { value: data.id, label: value }])
+            const data = await invite({email: value, business_name: selected.name, business_id: selected.id});
+            setVals([...vals, {id: data.id}])
+            setUsers([...vals, {value: data.id, label: value}])
             setLoading(false);
         } catch (error) {
             setError("could not invite user " + value + " please refresh and try again");
@@ -81,20 +82,19 @@ const AddReviewer = (props) => {
                 }}
             />
             {error &&
-                <AlertError message={error} />
+            <AlertError message={error}/>
             }
         </div>
     );
 }
 
 
-const UpdateReviewer = ({ selectedUsers, addUser }) => {
+const UpdateReviewer = ({selectedUsers, addUser}) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [options, setOptions] = useState([]);
-    const { selected } = useBusiness();
+    const {selected} = useBusiness();
 
-    const { data, loading: queryLoading } = useQuery(GET_USERS, {
+    const {data, loading: queryLoading} = useQuery(GET_USERS, {
         fetchPolicy: 'network-only',
         variables: {
             business_id: selected.id
@@ -107,20 +107,16 @@ const UpdateReviewer = ({ selectedUsers, addUser }) => {
         return ob;
     }, {});
 
-    useEffect(() => {
-        if (data) {
-            const options = data.users.reduce((arr, e) => {
-                if (lookup[e.id] == null) {
-                    arr.push({ value: e.id, label: e.email });
-                }
+    let options = [];
+    if (data != null) {
+        options = data.users.reduce((arr, e) => {
+            if (lookup[e.id] == null) {
+                arr.push({value: e.id, label: e.email});
+            }
 
-                return arr;
-            }, [])
-
-            console.log(options);
-            setOptions(options);
-        }
-    }, [selectedUsers, data, lookup]);
+            return arr;
+        }, [])
+    }
 
     useEffect(() => {
         setLoading(queryLoading);
@@ -131,7 +127,7 @@ const UpdateReviewer = ({ selectedUsers, addUser }) => {
             return ob.id === option.value;
         }, {});
 
-        addUser({ user });
+        addUser({user});
     };
 
     const handleCreate = async (value) => {
@@ -141,8 +137,8 @@ const UpdateReviewer = ({ selectedUsers, addUser }) => {
         const invite = httpsCallable(functions, "inviteUser");
 
         try {
-            const data = await invite({ email: value, business_name: selected.name, business_id: selected.id });
-            addUser({ user: { id: data.id, email: value, github_username: null } })
+            const data = await invite({email: value, business_name: selected.name, business_id: selected.id});
+            addUser({user: {id: data.id, email: value, github_username: null}})
             setLoading(false);
         } catch (error) {
             console.log(error);
@@ -171,12 +167,11 @@ const UpdateReviewer = ({ selectedUsers, addUser }) => {
                 }}
             />
             {error &&
-                <AlertError message={error} />
+            <AlertError message={error}/>
             }
         </div>
     );
 }
 
 
-
-export { AddReviewer, UpdateReviewer };
+export {AddReviewer, UpdateReviewer};
