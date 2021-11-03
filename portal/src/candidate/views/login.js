@@ -1,5 +1,5 @@
 import React, {useRef, useState} from "react";
-import {Redirect, useLocation} from "react-router-dom";
+import {Link, Redirect, useLocation} from "react-router-dom";
 import {getAuth, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup} from "firebase/auth";
 import firebase from "../../auth/firebase";
 import {ErrorAlert} from "../components/alert";
@@ -82,13 +82,12 @@ const Login = (props) => {
                             </div>
                         </div>
 
-
                         <div>
                             <div className="mb-2">
                                 <div className="text-xs">
-                                <span href="#" className=" text-primary hover:text-indigo-500">
-                                    Forgot your password?
-                                </span>
+                                    <Link to="/password-reset" className="text-primary  hover:text-indigo-500">
+                                        Forgot your password?
+                                    </Link>
                                 </div>
                             </div>
                             <button onClick={signin}
@@ -139,11 +138,11 @@ const Login = (props) => {
                 </div>
                 <div className="text-right">
                     <div className="flex justify-center items-center p-4">
-                        <a href={"//app."+domain+"/login"} className="text-indigo-500 mr-1">
+                        <a href={"//app." + domain + "/login"} className="text-indigo-500 mr-1">
                             login to recruiter portal
                         </a>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
                 </div>

@@ -100,9 +100,9 @@ const Login = (props) => {
                     <div>
                         <div className="mb-2">
                             <div className="text-xs">
-                                <span className=" text-indigo-500 hover:text-indigo-500">
+                                <Link to="/password-reset" className=" text-indigo-500 hover:text-indigo-500">
                                     Forgot your password?
-                                </span>
+                                </Link>
                             </div>
                         </div>
                         <button onClick={signin}
