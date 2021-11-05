@@ -32,6 +32,7 @@ func NewGithubRepoCollector(privateKey string, appID int64) (GithubRepoCollector
 	}, nil
 }
 
+// CollectRepos fetches a list of the github repos scoped to the passed installationID.
 func (g GithubRepoCollector) CollectRepos(installationID int64) ([]Repo, error) {
 	itr, err := ghinstallation.New(
 		http.DefaultTransport,
