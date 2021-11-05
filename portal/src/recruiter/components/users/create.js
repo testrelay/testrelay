@@ -9,14 +9,14 @@ import { useBusiness } from "../business/hook";
 const SubmitBtn = (props) => {
     if (props.loading) {
         return (
-            <button className="btn btn-disabled">
-                <Loading />
+            <button className="bg-gray-600 text-white text-sm rounded px-4 py-2 w-auto">
+                Loading
             </button>
         )
     }
 
     return (
-        <button className="btn btn-primary bg-indigo-600" onClick={props.submit}>
+        <button className="hover:bg-indigo-500 bg-indigo-600 text-white text-sm rounded px-4 py-2 w-auto" onClick={props.submit}>
             Invite
         </button>
     )
@@ -36,7 +36,6 @@ const CreateUser = () => {
         const invite = httpsCallable(functions, "inviteUser");
 
         try {
-            console.log(email.current.value);
             await invite({ email: email.current.value, business_name: selected.name, business_id: selected.id });
             setRedirect(true);
             setLoading(false);
@@ -54,13 +53,13 @@ const CreateUser = () => {
 
     return (
         <div className="pb-8">
-            <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
+            <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
                 <div className="flex flex-row space-x-4">
                     <div className="flex-grow">
-                        <label className="block uppercase text-gray-700 text-sm font-bold mb-2">
+                        <label className="block text-gray-700 text-sm font-bold mb-2">
                             User email
                         </label>
-                        <input name="name" ref={email} className="input input-bordered w-full text-gray-700" type="email" placeholder="joe@bloggs.com" />
+                        <input name="name" ref={email} className="input h-9 input-bordered w-full text-gray-700" type="email" placeholder="joe@bloggs.com" />
                     </div>
                     <div className="flex items-end">
                         <SubmitBtn submit={submit} loading={loading} />

@@ -117,6 +117,7 @@ query GetAssignment($id: Int!) {
       user {
         id
         email
+        github_username
       }
     }
     test {

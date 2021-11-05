@@ -20,7 +20,7 @@ const View = () => {
     const username = (data.users_by_pk.github_username) ? (<span className="text-indigo-500">{data.users_by_pk.github_username}</span>) : (<span className="text-indigo-500">github account not connected</span>);
 
     return (
-        <div className="card  shadow-md rounded-xl bg-white">
+        <div className="card  shadow-md rounded bg-white">
             <div className="p-4 pb-4 sm:px-8">
                 <h3 className="text-md text-gray-500 flex">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

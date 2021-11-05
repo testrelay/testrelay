@@ -1,15 +1,15 @@
-import React, { useState } from "react";
+import React, {useState} from "react";
 
-import { useMutation, useQuery } from "@apollo/client";
-import { GET_ASSIGNMENTS, UPDATE_ASSIGNMENT_CANCELED } from "../../components/assignments/queries";
-import { Loading } from "../../components";
-import { ErrorAlert } from "../../components/alert";
-import { assignmentLimit } from "../../components/assignments/time";
-import { Link } from "react-router-dom";
-import { useFirebaseAuth } from "../../auth/firebase-hooks";
+import {useMutation, useQuery} from "@apollo/client";
+import {GET_ASSIGNMENTS, UPDATE_ASSIGNMENT_CANCELED} from "../../components/assignments/queries";
+import {Loading} from "../../components";
+import {ErrorAlert} from "../../components/alert";
+import {assignmentLimit} from "../../../components/time";
+import {Link} from "react-router-dom";
+import {useFirebaseAuth} from "../../auth/firebase-hooks";
 
 const Buttons = (props) => {
-    const [cancel, { loading, error }] = useMutation(UPDATE_ASSIGNMENT_CANCELED, { variables: { id: props.id } });
+    const [cancel, {loading, error}] = useMutation(UPDATE_ASSIGNMENT_CANCELED, {variables: {id: props.id}});
     const [e, setError] = useState(null);
 
     if (props.test_day_chosen == null) {
@@ -21,10 +21,12 @@ const Buttons = (props) => {
     }
 
     if (loading) {
-        <div className="flex flex-wrap items-start space-x-2 flex-row justify-center md:justify-end">
-            <button className="btn btn-disabled">reschedule</button>
-            <button className="btn btn-disabled"><Loading /></button>
-        </div>
+        return (
+            <div className="flex flex-wrap items-start space-x-2 flex-row justify-center md:justify-end">
+                <button className="btn btn-disabled">reschedule</button>
+                <button className="btn btn-disabled"><Loading/></button>
+            </div>
+        )
     }
 
 
@@ -41,10 +43,11 @@ const Buttons = (props) => {
     }
     return (
         <div className="flex flex-wrap items-start space-x-2 flex-row justify-center md:justify-end">
-            <Link className="btn btn-primary h-10 min-h-0 shadow-lg" to={"/assignments/" + props.id + "/view"}>reschedule</Link>
+            <Link className="btn btn-primary h-10 min-h-0 shadow-lg"
+                  to={"/assignments/" + props.id + "/view"}>reschedule</Link>
             <button className="btn btn-warning h-10 min-h-0 shadow-lg" onClick={click}>cancel</button>
             {isError() &&
-                <div className="mt-2"><ErrorAlert message="could not cancel assignment, please try again" /></div>}
+            <div className="mt-2"><ErrorAlert message="could not cancel assignment, please try again"/></div>}
         </div>
     )
 }
@@ -84,26 +87,28 @@ const Schedule = (props) => {
 const Assignments = (props) => {
     return props.assignments.map((e, i) => {
         if (e.status === "cancelled") {
-            return (<div key={i} className="relative bg-white shadow-md p-8 rounded-lg text-center md:text-left" >
-                <div className="bg-gray-800 opacity-5 absolute w-full h-full top-0 left-0 right-0 z-10"></div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <div className="text-md md:text-sm font-medium text-primary mb-2">
-                            {e.test.business.name}
+            return (<div key={i} className="relative bg-white shadow-md p-8 rounded-lg text-center md:text-left">
+                    <div className="bg-gray-800 opacity-5 absolute w-full h-full top-0 left-0 right-0 z-10"/>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <div className="text-md md:text-sm font-medium text-primary mb-2">
+                                {e.test.business.name}
+                            </div>
+                            <div className="text-sm text-gray-500 flex items-center justify-center md:justify-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none"
+                                     viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span className="ml-1">{assignmentLimit(e.time_limit)}</span>
+                            </div>
                         </div>
-                        <div className="text-sm text-gray-500 flex items-center justify-center md:justify-start">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="ml-1">{assignmentLimit(e.time_limit)}</span>
+                        <div>
+                            <p className="text-warning">Cancelled</p>
                         </div>
+                        <div/>
                     </div>
-                    <div>
-                        <p className="text-warning">Cancelled</p>
-                    </div>
-                    <div> </div>
                 </div>
-            </div>
             )
         }
         return (
@@ -114,8 +119,10 @@ const Assignments = (props) => {
                             {e.test.business.name}
                         </div>
                         <div className="text-sm text-gray-500 flex items-center justify-center md:justify-start">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none"
+                                 viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <span className="ml-1">{assignmentLimit(e.time_limit)}</span>
                         </div>
@@ -124,7 +131,7 @@ const Assignments = (props) => {
                         <Schedule {...e} />
                     </div>
                     <div>
-                        <Buttons test_day_chosen={e.test_time_chosen} id={e.id} />
+                        <Buttons test_day_chosen={e.test_time_chosen} id={e.id}/>
                     </div>
                 </div>
             </div>
@@ -133,10 +140,10 @@ const Assignments = (props) => {
 }
 
 const List = () => {
-    const { loading: claimLoading, user } = useFirebaseAuth();
-    const { loading, error, data } = useQuery(GET_ASSIGNMENTS, {
-        fetchPolicy: "network-only"
-    }
+    const {loading: claimLoading, user} = useFirebaseAuth();
+    const {loading, error, data} = useQuery(GET_ASSIGNMENTS, {
+            fetchPolicy: "network-only"
+        }
     );
     console.log(user);
 
@@ -144,7 +151,7 @@ const List = () => {
         return (
             <div className="container mx-auto px-4 max-w-2xl">
                 <div className="mt-14">
-                    <Loading />
+                    <Loading/>
                 </div>
             </div>
         )
@@ -154,7 +161,7 @@ const List = () => {
         return (
             <div className="container mx-auto px-4 max-w-2xl">
                 <div className="mt-14">
-                    <ErrorAlert message="could not display profile, please refresh browser and try again" />
+                    <ErrorAlert message="could not display profile, please refresh browser and try again"/>
                 </div>
             </div>
         )
@@ -168,14 +175,14 @@ const List = () => {
                         <p className="text-xl mb-2">Hey {user.displayName.split(" ")[0]}</p>
                         <p className="text-md text-gray-500">Your assignments:</p>
                     </div>
-                    <Assignments assignments={data.assignments} />
+                    <Assignments assignments={data.assignments}/>
                 </div>
             </div>
         )
     }
 
     return (
-        <Loading />
+        <Loading/>
     )
 }
 

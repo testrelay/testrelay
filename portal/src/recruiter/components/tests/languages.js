@@ -2,7 +2,7 @@ import React from "react";
 
 const Languages = (props) => {
     const lang = props.languages.map((e, i) => {
-        return <div key={i} class="badge badge-lg">{e.language.name}</div>
+        return <div key={i} class="px-3 py-1 bg-gray-700 rounded-badge text-white">{e.language.name}</div>
     })
 
     return (

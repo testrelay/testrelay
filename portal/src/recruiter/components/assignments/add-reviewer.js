@@ -148,7 +148,7 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
     };
 
     return (
-        <div>
+        <div className="mb-2">
             <CreatableSelect
                 placeholder="Add reviewer"
                 isDisabled={loading}

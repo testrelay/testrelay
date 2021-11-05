@@ -19,7 +19,7 @@ import AuthorizedApolloProvider from "./auth/authorised-apollo-provider";
 import {FirebaseAuthProvider} from "./auth/firebase-hooks";
 import Create from "./views/business/create";
 import {BusinessProvider} from "./components/business/hook";
-import UserCreate from "./views/users/view";
+import UserCreate from "./views/users/create";
 import View from "./views/users/view";
 import Assigned from "./views/assignments/assigned";
 import ResetView from "./views/reset";

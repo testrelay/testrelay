@@ -9,14 +9,14 @@ import { UPDATE_BUSINESS_NAME } from "../../components/business/queries";
 const SubmitBtn = (props) => {
     if (props.loading) {
         return (
-            <button className="btn btn-disabled">
-                <Loading />
+            <button className="bg-gray-500 text-white text-sm rounded px-4 py-2 w-auto">
+                Loading
             </button>
         )
     }
 
     return (
-        <button className="btn btn-primary bg-indigo-600" onClick={props.submit}>
+        <button className="hover:bg-indigo-500 bg-indigo-600 text-white text-sm rounded px-4 py-2 w-auto" onClick={props.submit}>
             Save
         </button>
     )
@@ -28,7 +28,7 @@ const SetupInfo = (props) => {
             <div className="alert alert-info mb-6">
                 <div className="flex-1">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="w-6 h-6 mx-2 stroke-current">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <label>Please complete your TestRelay account setup by setting up your company name.</label>
                 </div>
@@ -76,14 +76,14 @@ const Settings = () => {
                 <AlertError message="could not update company, please try again" />
             }
             <div className="pb-8">
-                <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
-                    <label className="block uppercase text-gray-700 text-sm font-bold mb-2">
+                <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
+                    <label className="block text-gray-700 font-bold mb-2">
                         Company Name
                     </label>
-                    <p className="mb-2">This name will be displayed in emails and correspondance when scheduling assignments with candidates.</p>
+                    <p className="mb-2 text-sm">This name will be displayed in emails and correspondance when scheduling assignments with candidates.</p>
                     <input name="name" value={name} onChange={(e) => { setName(e.target.value) }} className="input input-bordered w-full text-gray-700" type="text" placeholder="e.g. BE candidate Test" />
                 </div>
-                <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
+                <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
                     <SubmitBtn loading={loading} submit={updateBiz} />
                 </div>
             </div>
