@@ -57,7 +57,7 @@ func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
 	gh, err := api.NewGraphQLQueryHandler(
 		config.HasuraURL+"/v1/graphql",
 		&api.GraphResolver{
-			HasuraURL: config.HasuraURL,
+			HasuraURL: config.HasuraURL + "/v1/graphql",
 			Collector: collector,
 		},
 	)
