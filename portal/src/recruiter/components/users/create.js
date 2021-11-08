@@ -1,7 +1,6 @@
 import React, { useRef, useState } from "react";
 import { getFunctions, httpsCallable } from "@firebase/functions";
 import { Redirect } from "react-router";
-import { Loading } from "../../../components";
 import firebase from "../../../auth/firebase";
 import { AlertError } from "../../../components/alerts";
 import { useBusiness } from "../business/hook";

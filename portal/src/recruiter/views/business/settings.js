@@ -1,7 +1,6 @@
 import { useMutation } from "@apollo/client";
 import React, { useState } from "react";
 import { Redirect, useLocation } from "react-router-dom";
-import { Loading } from "../../../components";
 import { AlertError } from "../../../components/alerts";
 import { useBusiness } from "../../components/business/hook";
 import { UPDATE_BUSINESS_NAME } from "../../components/business/queries";

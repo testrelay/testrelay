@@ -94,6 +94,7 @@ const TimelineBody = (props) => {
     );
     const scheduled = dateToReadable(new Date(props.meta.test_day_chosen));
 
+    // eslint-disable-next-line default-case
     switch (props.event_type) {
         case "sent":
             body = (
