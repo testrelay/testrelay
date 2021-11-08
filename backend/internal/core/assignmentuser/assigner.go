@@ -16,6 +16,7 @@ type Assigner struct {
 	ReviewerRepository ReviewerRepository
 	VCSClient          core.VCSCollaboratorAdder
 	Mailer             core.Mailer
+	APPURL             string
 }
 
 func (a Assigner) Assign(r RawReviewer) error {
@@ -45,10 +46,15 @@ func (a Assigner) Assign(r RawReviewer) error {
 		TemplateName: "reviewer-invite",
 		Subject:      "You've been invited you to review " + rd.Assignment.CandidateName + "'s technical assignment",
 		To:           rd.User.Email,
-	}, nil)
+	}, assignmentData{APPURL: a.APPURL, CandidateName: rd.Assignment.CandidateName})
 	if err != nil {
 		return fmt.Errorf("could not send reviewer invite to %s %w", rd.User.Email, err)
 	}
 
 	return nil
+}
+
+type assignmentData struct {
+	CandidateName string
+	APPURL        string
 }

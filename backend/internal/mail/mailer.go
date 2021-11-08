@@ -2,6 +2,7 @@ package mail
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
 	"html/template"
 
@@ -11,110 +12,20 @@ import (
 )
 
 var (
-	reviewInviteHTML = `
-<p>You've been invited to review %s's technical assignment<p>
-<p>Check out all your assigned reviews <a href="%s">Click here</a></p>
-`
-
-	candidateInviteHtml = `<html><body><h1>Hello {{ .Assignment.CandidateName }},</h1>
-<p>{{ .BusinessName }} has invited you to take a technical test.<p>
-<p><a href="{{.EmailLink}}">Click here</a> to schedule your assignment. The test is <b>{{ .Assignment.TimeLimitReadable }}</b> in length and you have until <b>{{.Assignment.ChooseReadable}}</b> to take the test.</p>
-<p>When choosing your preferred date/time to sit the test, you'll be prompted to sign in with github. This is so that we can invite you to a private repo where you'll take the test.</p>
-<p>Good luck and feel free to reply to this email if you have any technical problems scheduling your technical test.</p>
-<p><em>- the TestRelay candidate team</em></p></body></html>
-`
-
-	candidateStepInviteHtml = `<html>
-  <body>
-    <h1>Hello {{ .CandidateName }},</h1>
-    <p>Your test is due to start in 5 minutes. Your test instructions will be uploaded here <a href="{{.GithubRepoURL}}">{{.GithubRepoURL}}</a></p>
-  </body>
-</html>
-`
-	endEmailHtml = `<html>
-  <body>
-    <h1>Hello {{ .CandidateName }},</h1>
-    <p>Your test is due is about to end. Finish up and commit your final changes.</p>
-  </body>
-</html>`
-
-	submittedHTML = `<html>
-<body>
-<h1>Hello {{ .CandidateName }},</h1>
-<p>Thanks for submitting your assignment. {{.Test.Business.Name}} will now review your code and get back to you with feedback.</p>
-</body>
-</html>`
-
-	missedHtml = `<html>
-<body>
-<h1>Hello {{ .CandidateName }},</h1>
-<p>unfortunately you missed the deadline to submit your assignment. In many cases this is an automatic fail, but you should reach out to {{.Test.Business.Name}} to make sure.</p>
-</body>
-</html>`
-
-	submittedHTMLR = `<html>
-<body>
-<h1>Good news,</h1>
-<p>Candidate {{ .CandidateName }},Has submitted their assignment. You can check it out here: <a href="{{.GithubRepoURL}}">{{.GithubRepoURL}}</a>.</p>
-</body>
-</html>`
-
-	missedHtmlR = `<html>
-<p>{{ .CandidateName }} missed the deadline to submit their assignment. Try reaching out to them to understand why they weren't able to complete the assignment.</p>
-</body>
-</html>`
-
-	templates = map[string]t{
-		"warning": {
-			html: candidateStepInviteHtml,
-		},
-		"end": {
-			html: endEmailHtml,
-		},
-		"submitted": {
-			html: submittedHTML,
-		},
-		"submitted-recruiter": {
-			html: submittedHTMLR,
-		},
-		"missed": {
-			html: missedHtml,
-		},
-		"missed-recruiter": {
-			html: missedHtmlR,
-		},
-		"reviewer-invite": {
-			html: reviewInviteHTML,
-		},
-		"candidate-invite": {
-			html: candidateInviteHtml,
-		},
-	}
+	//go:embed templates/*
+	templates embed.FS
 )
 
-type t struct {
-	html string
-}
-
-func buildTemplates(name string, data interface{}) (*bytes.Buffer, error) {
-	ht := template.New("html")
-	ht, _ = ht.Parse(templates[name].html)
-
-	html := bytes.NewBuffer([]byte{})
-	err := ht.Execute(html, data)
-	if err != nil {
-		return nil, fmt.Errorf("could not execute html template %w", err)
-	}
-
-	return html, nil
-}
-
+// SMTPMailer implements a mailer interface, sending mail through a
+// smtp server. SMTPMailer expects Domain to be configured with the
+// correct sending from domain. i.e. @mydomain.io.
 type SMTPMailer struct {
 	server *mail.SMTPServer
 	Domain string
 }
 
-func NewSMTPMailer(config core.SMTPConfig) (SMTPMailer, error) {
+// NewSMTPMailer returns a mailer instance with the provided config.
+func NewSMTPMailer(config core.SMTPConfig) SMTPMailer {
 	server := mail.NewSMTPClient()
 
 	server.Host = config.Host
@@ -125,11 +36,14 @@ func NewSMTPMailer(config core.SMTPConfig) (SMTPMailer, error) {
 	return SMTPMailer{
 		server: server,
 		Domain: config.SendingDomain,
-	}, nil
+	}
 }
 
+// Send implements the mailer.Send interface, connecting to a smtp server to
+// send a message with the provided data. It first finds a template with the provided
+// config and then passes it the data interface.
 func (s SMTPMailer) Send(config core.MailConfig, data interface{}) error {
-	html, err := buildTemplates(config.TemplateName, data)
+	html, err := buildTemplate(config.TemplateName, data)
 	if err != nil {
 		return fmt.Errorf("could not build templates for test %s %w", config.TemplateName, err)
 	}
@@ -143,7 +57,7 @@ func (s SMTPMailer) Send(config core.MailConfig, data interface{}) error {
 	email.SetFrom(from).
 		AddTo(config.To).
 		SetSubject(config.Subject).
-		SetBody(mail.TextHTML, html.String())
+		SetBody(mail.TextHTML, html)
 
 	conn, err := s.server.Connect()
 	if err != nil {
@@ -151,4 +65,19 @@ func (s SMTPMailer) Send(config core.MailConfig, data interface{}) error {
 	}
 
 	return email.Send(conn)
+}
+
+func buildTemplate(name string, data interface{}) (string, error) {
+	t, err := template.ParseFS(templates, "templates/layout.html.tmpl", "templates/"+name+".html.tmpl")
+	if err != nil {
+		return "", fmt.Errorf("error opening email template %s %w", name, err)
+	}
+
+	html := bytes.NewBuffer([]byte{})
+	err = t.ExecuteTemplate(html, "layout", data)
+	if err != nil {
+		return "", fmt.Errorf("could not execute html template %w", err)
+	}
+
+	return html.String(), nil
 }

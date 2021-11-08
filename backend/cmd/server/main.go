@@ -69,18 +69,13 @@ func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
 }
 
 func newMailer(config options.Config) mail.SMTPMailer {
-	m, err := mail.NewSMTPMailer(core.SMTPConfig{
+	return mail.NewSMTPMailer(core.SMTPConfig{
 		SendingDomain: config.MailFromDomain,
 		Host:          config.SMTPHost,
 		Port:          int(config.SMTPPort),
 		Username:      config.SMTPUsername,
 		Password:      config.SMTPPassword,
 	})
-	if err != nil {
-		log.Fatalf("could not init mailer %s", err)
-	}
-
-	return m
 }
 
 func newLogger(config options.Config) *zap.SugaredLogger {
@@ -154,6 +149,7 @@ func run() {
 			ReviewerRepository: hasuraClient,
 			VCSClient:          githubClient,
 			Mailer:             mailer,
+			APPURL:             config.AppURL,
 		},
 	}
 

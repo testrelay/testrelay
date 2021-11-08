@@ -21,10 +21,10 @@ jobs:
         run: go build cmd/server/main.go
       - name: format
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
-      - name: start docker-compose
-        run: docker-compose -f "docker-compose-devtest.yaml" up -d --build
       - name: test unit
         run: go test ./...
+      - name: start docker-compose
+        run: docker-compose -f "docker-compose-devtest.yaml" up -d --build
       - name: test integration
         run: go test ./... --tags=integration
       - name: test e2e
