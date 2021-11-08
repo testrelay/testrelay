@@ -120,6 +120,7 @@ func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) 
 				)
 
 				httputil.BadRequest(w)
+				return
 			}
 		}
 
