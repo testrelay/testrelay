@@ -67,6 +67,7 @@ event_triggers:
     insert:
       columns: "*"
   name: assignment_events
+  request_transform: null
   retry_conf:
     interval_sec: 10
     num_retries: 0

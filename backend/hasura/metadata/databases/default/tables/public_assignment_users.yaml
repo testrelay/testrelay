@@ -35,6 +35,7 @@ event_triggers:
     insert:
       columns: "*"
   name: reviewers_added
+  request_transform: null
   retry_conf:
     interval_sec: 10
     num_retries: 0
