@@ -20,7 +20,7 @@ const Assignments = (props) => {
     }
     const asg = props.assignments.map((e, i) => {
         return (
-            <div key={i} className="bg-white relative shadow shadow-md px-8 py-4 card text-center md:text-left">
+            <div key={i} className="bg-white relative shadow shadow-md px-8 py-4 rounded text-center md:text-left">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <div class="text-md md:text-sm font-medium text-indigo-500 mb-1">
@@ -64,7 +64,7 @@ const TestView = () => {
 
     return (
         <div>
-            <div className="card  shadow-md rounded-lg mb-6 bg-white">
+            <div className="shadow-md rounded mb-6 bg-white">
                 <div className="p-4 pb-4 sm:px-8">
                     <h2 className="text-xl text-indigo-500 capitalize mb-1">{data.tests_by_pk.name}</h2>
                     <h3 className="text-md text-gray-300 flex">
@@ -93,7 +93,7 @@ const TestView = () => {
                             </dd>
                         </div>
                         <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                            <dt class="text-sm font-medium text-gray-500 mb-2 sm:mb-0">
                                 Allowed languages
                             </dt>
                             <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
@@ -104,7 +104,7 @@ const TestView = () => {
                 </div>
             </div>
             <div className="py-4 border-b-4 mb-6">
-                <h2 className="text-xl ml-8 font-bold">Test Assignments</h2>
+                <h2 className="text-xl font-bold">Test Assignments</h2>
             </div>
             <Assignments assignments={data.tests_by_pk.assignments} />
         </div>

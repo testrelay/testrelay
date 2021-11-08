@@ -1,4 +1,5 @@
 const assignmentLimit = (timeLimit) => {
+    console.log(timeLimit);
     const hours = Math.floor(timeLimit / 3600);
 
     if (hours > 25) {

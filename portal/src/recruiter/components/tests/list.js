@@ -11,10 +11,10 @@ import EmptyState from "../../../components/empty-state";
 const TestRow = (props) => {
     const code = props.zip || props.github_repo;
     return (
-        <div key={props.id} className="bg-white relative shadow-md p-8 card text-center md:text-left mb-4">
+        <div key={props.id} className="bg-white relative shadow-md px-4 md:px-8 py-4 md:py-6 rounded text-center md:text-left mb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <div class="text-md md:text-sm font-medium text-indigo-500 mb-2">
+                <div className="pb-4 md:pb-0 border-b-2 md:border-b-0">
+                    <div class="capitalize text-md md:text-sm font-medium text-indigo-500 mb-2">
                         {props.name}
                     </div>
                     <div class="text-sm text-gray-500 flex items-center justify-center md:justify-start">
@@ -24,7 +24,7 @@ const TestRow = (props) => {
                         <span className="ml-2">{code}</span>
                     </div>
                 </div>
-                <div>
+                <div className="pb-2 md:pb-0">
                     <div class="text-md md:text-sm font-medium text-gray-800 mb-2">
                         Default Time limit
                     </div>
@@ -35,7 +35,7 @@ const TestRow = (props) => {
                         <span className="ml-2">{testLimitToReadable(props.time_limit)}</span>
                     </div>
                 </div>
-                <div className="flex items-center justify-end">
+                <div className="flex items-center justify-center md:justify-end bg-indigo-500 md:bg-transparent text-white md:text-gray-800 p-2 md:p-0 rounded">
                     <Link to={"/tests/" + props.id + "/view"}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg></Link>

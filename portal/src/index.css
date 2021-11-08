@@ -94,3 +94,7 @@
 .btn {
     @apply  normal-case
 }
+
+.menu ul {
+    padding-left: 0 !important;
+}

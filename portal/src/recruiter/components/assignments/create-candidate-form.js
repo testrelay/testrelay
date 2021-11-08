@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { Redirect } from 'react-router-dom';
-import { useQuery, useMutation } from '@apollo/client';
-import { GET_TESTS } from '../tests/queries';
-import { INSERT_ASSIGNMENT } from './queries.js';
-import { Loading } from '../../../components';
-import { dateToReadable, formatDate } from "../../../components/date";
+import React, {useState} from "react";
+import {Redirect} from 'react-router-dom';
+import {useMutation, useQuery} from '@apollo/client';
+import {GET_TESTS} from '../tests/queries';
+import {INSERT_ASSIGNMENT} from './queries.js';
+import {Loading} from '../../../components';
+import {dateToReadable, formatDate} from "../../../components/date";
 import DatePicker from 'react-datepicker';
-import { AddReviewer } from "./add-reviewer";
+import {AddReviewer} from "./add-reviewer";
 
 const CreateCandidateForm = (props) => {
     const today = new Date();
@@ -23,7 +23,7 @@ const CreateCandidateForm = (props) => {
     });
 
 
-    const { loading, data } = useQuery(GET_TESTS);
+    const {loading, data} = useQuery(GET_TESTS);
 
     const [insertCandidate, mutation] = useMutation(INSERT_ASSIGNMENT)
     const insertLoading = mutation.loading;
@@ -36,23 +36,23 @@ const CreateCandidateForm = (props) => {
             value = event.target.checked;
         }
 
-        setCandidateForm(Object.assign({}, candidateForm, { [event.target.name]: value }));
+        setCandidateForm(Object.assign({}, candidateForm, {[event.target.name]: value}));
     }
 
     const setReviewers = (reviewers) => {
-        setCandidateForm(Object.assign({}, candidateForm, { reviewers }));
+        setCandidateForm(Object.assign({}, candidateForm, {reviewers}));
     }
 
     const dateChange = (date) => {
-        setCandidateForm(Object.assign({}, candidateForm, { chooseUntil: date }));
+        setCandidateForm(Object.assign({}, candidateForm, {chooseUntil: date}));
     }
 
     const testChange = (event) => {
         const test = data.tests.find((e) => {
-            return e.id === event.target.value;
+            return e.id === parseInt(event.target.value);
         });
 
-        setCandidateForm(Object.assign({}, candidateForm, { test }));
+        setCandidateForm(Object.assign({}, candidateForm, {test}));
     }
 
     const submitForm = (event) => {
@@ -96,55 +96,64 @@ const CreateCandidateForm = (props) => {
     if (insertData) {
         return (<Redirect push to={{
             pathname: "/assignments/",
-            state: { success: "scheduling test for candidate " + insertData.insert_assignments_one.candidate_email }
-        }} />)
+            state: {success: "scheduling test for candidate " + insertData.insert_assignments_one.candidate_email}
+        }}/>)
     }
 
     return (
         <div className="pb-12">
-            <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
-                <div className="flex flex-wrap -mx-3">
-                    <div className="w-full md:w-1/2 px-3 mb-6 md:mb-0">
-                        <label className="block uppercase text-gray-700 text-sm font-bold mb-2">
+            <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
+                <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="">
+                        <label className="block  text-gray-700 text-md font-bold mb-2">
                             Candidate Name
                         </label>
-                        <input onChange={inputChange} name="name" className="input input-bordered rounded w-full" type="text" placeholder="Joe Bloggs" />
+                        <input onChange={inputChange} name="name" className="input input-bordered rounded w-full"
+                               type="text" placeholder="Joe Bloggs"/>
                     </div>
-                    <div className="w-full md:w-1/2 px-3 mb-6 md:mb-0">
-                        <label className="block uppercase text-gray-700 text-sm font-bold mb-2">
+                    <div className="">
+                        <label className="block  text-gray-700 text-md font-bold mb-2">
                             Candidate Email
                         </label>
-                        <input onChange={inputChange} name="email" className="input input-bordered rounded w-full" type="email" placeholder="joe@bloggs.com" />
+                        <input onChange={inputChange} name="email" className="input input-bordered rounded w-full"
+                               type="email" placeholder="joe@bloggs.com"/>
                     </div>
                 </div>
             </div>
-            <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
-                <label className="block uppercase text-gray-700 text-sm font-bold mb-2">
+            <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
+                <label className="block  text-gray-700 text-md font-bold mb-2">
                     Candidate Test
                 </label>
-                <p className="mb-3">Which test the candidate should sit.</p>
-                <TestSelect loading={loading} data={data} change={testChange} />
+                <p className="mb-3 text-sm">Which test the candidate should sit.</p>
+                <TestSelect loading={loading} data={data} change={testChange}/>
             </div>
-            <TestDisplay test={candidateForm.test} change={inputChange} />
-            <AlterTestSection test={candidateForm.test} alter={candidateForm.alterTest} change={inputChange} changeDate={dateChange} chooseUntil={candidateForm.chooseUntil} timeLimitUnit={candidateForm.timeLimitUnit} />
-            <div className="w-full bg-white p-8 shadow-md rounded-xl mb-8">
-                <label className="block uppercase text-gray-700 text-sm font-bold mb-2">
+            <TestDisplay test={candidateForm.test} change={inputChange}/>
+            <AlterTestSection test={candidateForm.test} alter={candidateForm.alterTest} change={inputChange}
+                              changeDate={dateChange} chooseUntil={candidateForm.chooseUntil}
+                              timeLimitUnit={candidateForm.timeLimitUnit}/>
+            <div className="w-full bg-white px-8 py-6 shadow-md rounded mb-8">
+                <label className="block  text-gray-700 text-md font-bold mb-2">
                     Assignment Reviewers
                 </label>
-                <p className="mb-3">Add users from your organisation that will review the code of this assignment. These users will need to have a github account to be able to access the assignment repository. You can add more users later.</p>
-                <AddReviewer reviewerChange={setReviewers} />
+                <p className="mb-3 text-sm">Add users from your organisation that will review the code of this
+                    assignment. These
+                    users will need to have a github account to be able to access the assignment repository. You can add
+                    more users later.</p>
+                <AddReviewer reviewerChange={setReviewers}/>
             </div>
-            <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
-                <SubmitBtn loading={insertLoading} submit={submitForm} change={inputChange} />
+            <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
+                <SubmitBtn loading={insertLoading} submit={submitForm} change={inputChange}/>
                 {insertError &&
-                    <div class="alert alert-error mt-4">
-                        <div class="flex-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-6 h-6 mx-2 stroke-current">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
-                            </svg>
-                            <label>Could not create assignment, please try again</label>
-                        </div>
+                <div className="alert alert-error mt-4">
+                    <div className="flex-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                             className="w-6 h-6 mx-2 stroke-current">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                        </svg>
+                        <label>Could not create assignment, please try again</label>
                     </div>
+                </div>
                 }
             </div>
         </div>
@@ -152,26 +161,26 @@ const CreateCandidateForm = (props) => {
 }
 
 
-
 const SubmitBtn = (props) => {
     if (props.loading) {
         return (
-            <button className="btn btn-disabled">
-                <Loading />
+            <button className="disabled bg-gray-600 text-white text-sm rounded px-4 py-2 w-auto">
+                Loading
             </button>
         )
     }
 
     return (
-        <button className="btn btn-primary bg-indigo-600" onClick={props.submit}>
-            Schedule Candidate Test
+        <button className="hover:bg-indigo-500 bg-indigo-600 text-white text-sm rounded px-4 py-2 w-auto"
+                onClick={props.submit}>
+            Schedule assignment
         </button>
     )
 }
 
 const TestDisplay = (props) => {
     if (props.test == null) {
-        return (null);
+        return null;
     }
 
     let unit = 'hours';
@@ -185,14 +194,17 @@ const TestDisplay = (props) => {
     const window = dateToReadable(d)
 
     return (
-        <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
-            <p>The candidate will have <b>{limit} {unit}</b> to complete test hosted @ <a href={"https://github.com/" + props.test.github_repo} target="_blank" rel="noreferrer" className="text-indigo-500">github.com/{props.test.github_repo}</a></p>
-            <p className="mb-4">The will be able to schedule a time to take the test until <b>{window}</b>.</p>
+        <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
+            <p className="text-sm">The candidate will have <b>{limit} {unit}</b> to complete test hosted @ <a
+                href={"https://github.com/" + props.test.github_repo} target="_blank" rel="noreferrer"
+                className="text-indigo-500">github.com/{props.test.github_repo}</a></p>
+            <p className="mb-4 text-sm">The will be able to schedule a time to take the test until <b>{window}</b>.</p>
             <div className="max-w-sm">
                 <div className="form-control">
-                    <label className="cursor-pointer label">
-                        <span className="label-text">Change test default time constraints</span>
-                        <input type="checkbox" name="alterTest" onChange={props.change} className="checkbox checkbox-primary" />
+                    <label className="cursor-pointer flex items-center">
+                        <input type="checkbox" name="alterTest" onChange={props.change}
+                               className="checkbox checkbox-primary"/>
+                        <span className="ml-2 label-text ">Change test default time constraints</span>
                     </label>
                 </div>
             </div>
@@ -224,39 +236,32 @@ const AlterTestSection = (props) => {
     }
 
     return (
-        <div className="w-full bg-white p-8 mb-8 shadow-md rounded-xl">
-            <div className="flex flex-wrap -mx-3 mb-8 items-baseline">
-                <div className="w-full px-3 mb-3">
-                    <label className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-1">
-                        Candidate assignment time limit
-                    </label>
-                    <p>The amount of time a candidate has to complete the assignment.</p>
-                </div>
-                <div className="w-full md:w-1/2 px-3 mb-6 md:mb-0">
-                    <div className="relative">
+        <div className="w-full bg-white px-8 py-6 mb-8 shadow-md rounded">
+            <div className="grid gap-6 divide-y-2">
+                <div>
+                    <div className="mb-2">
+                        <label className="block  tracking-wide text-gray-700 text-sm font-bold mb-1">
+                            Candidate assignment time limit
+                        </label>
+                        <p className="text-sm">The amount of time a candidate has to complete the assignment.</p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
                         <select name="timeLimit" onChange={props.change} className="select select-bordered w-full">
                             <option value="" disabled selected>Select time limit</option>
                             {optionsTo(optionSelection())}
                         </select>
-                    </div>
-                </div>
-                <div className="w-full md:w-1/2 px-3 mb-6 md:mb-0">
-                    <div className="relative">
-                        <select name="timeLimitUnit" onChange={props.change} className="select select-bordered block appearance-none w-full">
+                        <select name="timeLimitUnit" onChange={props.change}
+                                className="select select-bordered block appearance-none w-full">
                             <option value="hours">hours</option>
                             <option value="days">days</option>
                         </select>
                     </div>
                 </div>
-            </div>
-            <div className="flex flex-wrap -mx-3">
-                <div className="w-full px-3 mb-3">
-                    <label className="block uppercase tracking-wide text-gray-700 font-bold text-sm mb-1">
+                <div className="pt-6">
+                    <label className="block  tracking-wide text-gray-700 font-bold text-sm mb-1">
                         Assignment Expiry
                     </label>
-                    <p>The date that a candidate has until to take the assignment.</p>
-                </div>
-                <div className="w-full px-3">
+                    <p className="text-sm mb-2">The date that a candidate has until to take the assignment.</p>
                     <DatePicker
                         selected={props.chooseUntil}
                         onChange={(date) => props.changeDate(date)}
@@ -266,13 +271,13 @@ const AlterTestSection = (props) => {
                     />
                 </div>
             </div>
-        </div >
+        </div>
     )
 }
 
 const TestSelect = (props) => {
     if (props.loading) {
-        return <Loading />
+        return <Loading/>
     }
 
     const tests = props.data.tests.map((e) => {

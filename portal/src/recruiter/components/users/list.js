@@ -44,7 +44,7 @@ const List = (props) => {
     const content = users.map((e) => {
         return (
             <div key={e.id} className="p-2 lg:w-1/2 md:w-1/2 w-full">
-                <div className="bg-white p-8 shadow-md rounded-lg">
+                <div className="bg-white px-8 py-6 shadow-md rounded-lg">
                     <div className="flex flex-row">
                         <div className="w-2/3">
                             <h2 className="text-gray-900 title-font font-medium">{e.email}</h2>
