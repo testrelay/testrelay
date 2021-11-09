@@ -6,7 +6,7 @@ import {Loading} from "../../components";
 import {ErrorAlert} from "../../components/alert";
 import {assignmentLimit} from "../../../components/time";
 import {Link} from "react-router-dom";
-import {useFirebaseAuth} from "../../auth/firebase-hooks";
+import {useFirebaseAuth} from "../../../auth/firebase-hooks";
 
 const Buttons = (props) => {
     const [cancel, {loading, error}] = useMutation(UPDATE_ASSIGNMENT_CANCELED, {variables: {id: props.id}});

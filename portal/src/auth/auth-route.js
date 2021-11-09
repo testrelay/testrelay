@@ -1,11 +1,11 @@
 import React from "react";
 import { Route, Redirect } from "react-router";
 import { useLocation } from "react-router-dom";
-import { Loading } from "../../components";
+import { Loading } from "../components";
 import { useFirebaseAuth } from "./firebase-hooks";
 
 
-const AuthedRoute = ({ component, ...args }) => {
+const AuthedRoute = ({ component, redirect, ...args }) => {
     const location = useLocation();
     const { user, loading } = useFirebaseAuth();
 
@@ -16,7 +16,8 @@ const AuthedRoute = ({ component, ...args }) => {
     }
 
     if (user) {
-        const path = location.referrer || "/tests";
+        const path = location.referrer || redirect;
+
         delete location.state.referrer;
 
         return <Redirect to={path} />

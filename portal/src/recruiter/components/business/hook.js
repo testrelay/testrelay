@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@apollo/client';
 import { useState, useEffect } from 'react';
 import { GET_BUSINESS } from './queries';
-import { useFirebaseAuth } from '../../auth/firebase-hooks';
+import { useFirebaseAuth } from '../../../auth/firebase-hooks';
 
 
 const BusinessContext = React.createContext({ selected: null, loading: false, setSelected: (val) => { } });

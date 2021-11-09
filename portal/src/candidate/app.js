@@ -7,26 +7,26 @@ import List from "./views/assignments/list";
 
 import "../app.css";
 import Login from "./views/login";
-import AuthedRoute from "./auth/auth-route";
-import AuthorizedApolloProvider from "./auth/authorised-apollo-provider";
-import {FirebaseAuthProvider} from "./auth/firebase-hooks";
+import AuthedRoute from "../auth/auth-route";
+import AuthorizedApolloProvider from "../auth/authorised-apollo-provider";
+import {CandidateAuthProvider} from "../auth/firebase-hooks";
 import ResetView from "./views/reset";
 
 const App = () => {
     return (
         <div id="app" className="h-full">
             <BrowserRouter>
-                <FirebaseAuthProvider>
-                    <AuthorizedApolloProvider>
+                <CandidateAuthProvider>
+                    <AuthorizedApolloProvider role="candidate">
                         <Switch>
-                            <AuthedRoute path="/login" exact component={Login}/>
-                            <AuthedRoute path="/password-reset" exact component={ResetView}/>
+                            <AuthedRoute redirect="/assignments" path="/login" exact component={Login}/>
+                            <AuthedRoute redirect="/assignments" path="/password-reset" exact component={ResetView}/>
 
                             <ProtectedRoute path="/assignments/:id/view" exact component={AssignmentView}/>
                             <ProtectedRoute path="/assignments" exact component={List}/>
                         </Switch>
                     </AuthorizedApolloProvider>
-                </FirebaseAuthProvider>
+                </CandidateAuthProvider>
             </BrowserRouter>
         </div>
     );

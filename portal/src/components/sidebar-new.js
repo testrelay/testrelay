@@ -3,7 +3,7 @@ import {getAuth, signOut} from "firebase/auth";
 import React from "react";
 import {Link, useLocation} from "react-router-dom";
 import firebase from "../auth/firebase";
-import {useFirebaseAuth} from "../recruiter/auth/firebase-hooks";
+import {useFirebaseAuth} from "../auth/firebase-hooks";
 import {useBusiness} from "../recruiter/components/business/hook";
 import {GET_BUSINESS} from "../recruiter/components/business/queries";
 import Loading from "./loading";
@@ -21,7 +21,7 @@ const BusinessSelect = (props) => {
 
     let hasOwnOrg = false;
 
-    if (data.businesses.length === 1) {
+    if (data && data.businesses.length === 1) {
         if (data.businesses[0].creator_id === parseInt(claims["x-hasura-user-pk"])) {
             hasOwnOrg = true;
         }
@@ -51,7 +51,7 @@ const BusinessSelect = (props) => {
         )
     }
 
-    if (data.businesses.length === 0) {
+    if (data && data.businesses.length === 0) {
         return (
             <div className="flex justify-center space-x-1 items-center p-2">
                 <Link to="/business/create"
@@ -62,13 +62,16 @@ const BusinessSelect = (props) => {
 
     }
 
-    const businesses = data.businesses.map((e) => {
-        if (e.creator_id === parseInt(claims["x-hasura-user-pk"])) {
-            hasOwnOrg = true;
-        }
+    let businesses = []
+    if (data) {
+        businesses = data.businesses.map((e) => {
+            if (e.creator_id === parseInt(claims["x-hasura-user-pk"])) {
+                hasOwnOrg = true;
+            }
 
-        return (<option key={e.id} value={e.id}>{e.name}</option>)
-    })
+            return (<option key={e.id} value={e.id}>{e.name}</option>)
+        })
+    }
 
     const change = (ev) => {
         const selected = data.businesses.find(e => e.id === ev.target.value);
@@ -142,7 +145,11 @@ const Sidebar = (props) => {
 
         <div className="h-full">
             <div className="px-4 py-2 bg-blue-600 text-center shadow">
-                <span className="text-white mx-auto">We're in <span className="text-yellow-400">alpha</span>, please help us squash bugs by <a className="hover:text-yellow-300 text-yellow-400" href="https://github.com/testrelay/testrelay/issues">reporting issues here</a> or chatting with us <a className="hover:text-yellow-300 text-yellow-400"  href="https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ">here</a>.</span>
+                <span className="text-white mx-auto">We're in <span className="text-yellow-400">alpha</span>, please help us squash bugs by <a
+                    className="hover:text-yellow-300 text-yellow-400"
+                    href="https://github.com/testrelay/testrelay/issues">reporting issues here</a> or chatting with us <a
+                    className="hover:text-yellow-300 text-yellow-400"
+                    href="https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ">here</a>.</span>
             </div>
             <div className="bg-gray-100 drawer drawer-mobile h-full">
                 <input id="my-drawer-2" type="checkbox" className="drawer-toggle"/>

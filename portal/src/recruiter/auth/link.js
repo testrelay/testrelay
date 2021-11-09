@@ -1,10 +1,10 @@
 import {
-    fetchSignInMethodsForEmail,
-    signInWithEmailAndPassword,
-    signInWithPopup,
     EmailAuthProvider,
+    fetchSignInMethodsForEmail,
     GoogleAuthProvider,
     linkWithCredential,
+    signInWithEmailAndPassword,
+    signInWithPopup,
 } from "firebase/auth";
 
 const handleAuthError = async (auth, provider, error) => {
@@ -19,16 +19,16 @@ const handleAuthError = async (auth, provider, error) => {
             try {
                 await signInWithEmailAndPassword(auth, existingEmail, password);
             } catch (error) {
-                return { error: errorToReadable(error) }
+                return {error: errorToReadable(error)}
             }
         } else if (providers.indexOf(GoogleAuthProvider.PROVIDER_ID) !== -1) {
             const google = new GoogleAuthProvider();
-            google.setCustomParameters({ 'login_hint': existingEmail });
+            google.setCustomParameters({'login_hint': existingEmail});
 
             try {
                 await signInWithPopup(auth, google);
             } catch (error) {
-                return { creds: null, error: errorToReadable(error) }
+                return {creds: null, error: errorToReadable(error)}
             }
         }
 
@@ -36,16 +36,16 @@ const handleAuthError = async (auth, provider, error) => {
             try {
                 const creds = await linkWithCredential(auth.currentUser, previousCredential)
 
-                return { creds }
+                return {creds}
             } catch (error) {
-                return { error: errorToReadable(error) }
+                return {error: errorToReadable(error)}
             }
         }
 
     }
 
 
-    return { error: errorToReadable(error) }
+    return {error: errorToReadable(error)}
 }
 
 const errorToReadable = (error) => {
@@ -53,4 +53,4 @@ const errorToReadable = (error) => {
     return error.message;
 }
 
-export { handleAuthError }
+export {handleAuthError}

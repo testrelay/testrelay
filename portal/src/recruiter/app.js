@@ -13,10 +13,10 @@ import "../app.css";
 import Settings from "./views/business/settings";
 import Login from "./views/login";
 import Register from "./views/register";
-import AuthedRoute from "./auth/auth-route";
+import AuthedRoute from "../auth/auth-route";
 import UserList from "./views/users/list";
-import AuthorizedApolloProvider from "./auth/authorised-apollo-provider";
-import {FirebaseAuthProvider} from "./auth/firebase-hooks";
+import AuthorizedApolloProvider from "../auth/authorised-apollo-provider";
+import {RecruiterAuthProvider} from "../auth/firebase-hooks";
 import Create from "./views/business/create";
 import {BusinessProvider} from "./components/business/hook";
 import UserCreate from "./views/users/create";
@@ -29,7 +29,7 @@ const App = () => {
     return (
         <div id="app" className="h-full">
             <BrowserRouter>
-                <FirebaseAuthProvider>
+                <RecruiterAuthProvider>
                     <AuthorizedApolloProvider>
                         <BusinessProvider>
                             <Switch>
@@ -38,9 +38,9 @@ const App = () => {
                                 </Route>
 
 
-                                <AuthedRoute path="/login" exact component={Login}/>
-                                <AuthedRoute path="/register" exact component={Register}/>
-                                <AuthedRoute path="/password-reset" exact component={ResetView}/>
+                                <AuthedRoute redirect="/tests" path="/login" exact component={Login}/>
+                                <AuthedRoute redirect="/tests" path="/register" exact component={Register}/>
+                                <AuthedRoute redirect="/tests" path="/password-reset" exact component={ResetView}/>
 
                                 <ProtectedRoute path="/github-setup" exact component={GithubSetup}/>
 
@@ -62,7 +62,7 @@ const App = () => {
                             </Switch>
                         </BusinessProvider>
                     </AuthorizedApolloProvider>
-                </FirebaseAuthProvider>
+                </RecruiterAuthProvider>
             </BrowserRouter>
         </div>
     );

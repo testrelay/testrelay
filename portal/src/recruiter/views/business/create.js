@@ -6,7 +6,7 @@ import { AlertError } from "../../../components/alerts";
 import { GET_BUSINESS, INSERT_BUSINESS } from "../../components/business/queries";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import firebase from "../../../auth/firebase";
-import { useFirebaseAuth } from "../../auth/firebase-hooks";
+import { useFirebaseAuth } from "../../../auth/firebase-hooks";
 import { useBusiness } from "../../components/business/hook";
 
 const SubmitBtn = (props) => {

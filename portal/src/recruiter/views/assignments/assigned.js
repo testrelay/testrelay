@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NetworkStatus, useQuery } from '@apollo/client';
 import { Link, useLocation } from 'react-router-dom';
-import { useFirebaseAuth } from '../../auth/firebase-hooks';
+import { useFirebaseAuth } from '../../../auth/firebase-hooks';
 import { Loading } from '../../../components';
 import { GET_ASSIGNED } from '../../components/assignments/queries';
 import { getFunctions, httpsCallable } from '@firebase/functions';
