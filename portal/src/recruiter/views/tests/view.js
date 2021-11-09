@@ -23,10 +23,10 @@ const Assignments = (props) => {
             <div key={i} className="bg-white relative shadow shadow-md px-8 py-4 rounded text-center md:text-left">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <div class="text-md md:text-sm font-medium text-indigo-500 mb-1">
+                        <div className="text-md md:text-sm font-medium text-indigo-500 mb-1">
                             {e.candidate_name}
                         </div>
-                        <div class="text-sm text-gray-500 flex items-center justify-center md:justify-start">
+                        <div className="text-sm text-gray-500 flex items-center justify-center md:justify-start">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
@@ -74,29 +74,29 @@ const TestView = () => {
                         <span className="ml-2">{data.tests_by_pk.github_repo}</span>
                     </h3>
                 </div>
-                <div class="border-t border-gray-200">
+                <div className="border-t border-gray-200">
                     <dl>
-                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Default time limit
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 {testLimitToReadable(data.tests_by_pk.time_limit)}
                             </dd>
                         </div>
-                        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Default test expiry
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 {testLimitToReadable(data.tests_by_pk.test_window)}
                             </dd>
                         </div>
-                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500 mb-2 sm:mb-0">
+                        <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500 mb-2 sm:mb-0">
                                 Allowed languages
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 <Languages languages={data.tests_by_pk.test_languages} />
                             </dd>
                         </div>

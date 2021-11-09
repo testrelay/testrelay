@@ -29,12 +29,14 @@ const useRecruiter = () => {
                     setState(s => {
                         return {...s, user, loading: true}
                     });
+
                     const functions = getFunctions(firebase, "europe-west2");
                     const changeMeta = httpsCallable(functions, "changeMeta");
 
                     await changeMeta({user_type: "recruiter"});
                     const token = await user.getIdToken(true);
                     const claims = await getClaims(user);
+
                     setState(s => {
                         return {...s, user, claims, token, loading: false}
                     });
@@ -48,6 +50,7 @@ const useRecruiter = () => {
                 return;
             }
 
+            console.log('user', user)
             setState(s => {
                 return {...s, loading: false, user}
             });

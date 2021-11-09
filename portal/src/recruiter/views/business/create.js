@@ -92,7 +92,7 @@ const Create = (props) => {
                 })
 
                 if (hasBusiness) {
-                    return <Redirect to="/tests" />
+                    setRedirect("/tests");
                 }
             }
 

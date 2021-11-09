@@ -1,11 +1,13 @@
-import React from 'react';
-import { useQuery } from '@apollo/client';
-import { useState, useEffect } from 'react';
-import { GET_BUSINESS } from './queries';
-import { useFirebaseAuth } from '../../../auth/firebase-hooks';
+import React, {useEffect, useState} from 'react';
+import {useQuery} from '@apollo/client';
+import {GET_BUSINESS} from './queries';
+import {useFirebaseAuth} from '../../../auth/firebase-hooks';
 
 
-const BusinessContext = React.createContext({ selected: null, loading: false, setSelected: (val) => { } });
+const BusinessContext = React.createContext({
+    selected: null, loading: false, setSelected: (val) => {
+    }
+});
 
 const getSelected = () => {
     const item = localStorage.getItem('business');
@@ -18,14 +20,13 @@ const getSelected = () => {
 
 const useBusinesses = () => {
     const stored = getSelected();
-    console.log("stored biz in local storage", stored);
 
     const [selected, setSelected] = useState(stored);
     const [loading, setLoading] = useState(!stored);
-    const { claims } = useFirebaseAuth(null);
+    const {user, claims} = useFirebaseAuth(null);
 
     const id = claims ? parseInt(claims["x-hasura-user-pk"]) : null;
-    const { data, error } = useQuery(GET_BUSINESS, {
+    const {data, error} = useQuery(GET_BUSINESS, {
         skip: !claims || selected,
         nextFetchPolicy: 'network-only',
     });
@@ -40,44 +41,48 @@ const useBusinesses = () => {
         if (val) {
             localStorage.setItem('business', JSON.stringify(val));
         } else {
-            localStorage.setItem('business', val);
+            localStorage.setItem('business', null);
         }
+
         setSelected(val);
     }
 
 
     useEffect(() => {
         if (error) {
-            console.log("master business error", error)
             choose(null);
         }
     }, [error]);
 
+    useEffect(() => {
+        if (user == null) {
+            persistSelected(null);
+        }
+    }, [user]);
 
     useEffect(() => {
         if (data) {
-            console.log("businesses returned from business provider ", data)
             const returned = data.businesses || [];
             if (returned.length === 0) {
-                return choose(null);
+                choose(null);
             }
 
             const created = returned.find(e => e.creator_id === id)
             if (created) {
-                return choose(created);
+                choose(created);
+            } else {
+                choose(returned[0]);
             }
-
-            choose(returned[0]);
         }
         // eslint-disable
     }, [data, id])
 
     /* eslint-enable */
 
-    return { loading, selected, setSelected: persistSelected };
+    return {loading, selected, setSelected: persistSelected};
 }
 
-const BusinessProvider = ({ children }) => {
+const BusinessProvider = ({children}) => {
     const state = useBusinesses();
 
     return (
@@ -99,4 +104,4 @@ const useBusiness = () => {
     return context;
 }
 
-export { BusinessProvider, useBusiness }
+export {BusinessProvider, useBusiness}

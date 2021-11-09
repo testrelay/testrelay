@@ -37,7 +37,6 @@ const withBusinessRequired = (Component) => (props) => {
         )
     }
 
-    console.log("selected in business required", selected)
     if (!selected && !location.pathname.includes("business/create")) {
         return <Redirect push to={{
             pathname: "/business/create",

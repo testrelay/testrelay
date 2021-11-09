@@ -12,14 +12,14 @@ const Pagination = (props) => {
     for (let i = 0; i < pages; i++) {
         if (i === props.page) {
             btns.push((<button key={i}
-                               class="z-10 bg-indigo-50 border-indigo-500 text-indigo-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+                               className="z-10 bg-indigo-50 border-indigo-500 text-indigo-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
                                value={i}>{i + 1}</button>))
             continue
         }
 
         btns.push((
             <button key={i}
-                    class="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+                    className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
                     value={i} onClick={() => {
                 props.setState(i)
             }}>{i + 1}</button>))
@@ -54,9 +54,9 @@ const Pagination = (props) => {
             <span className="sr-only">Next</span>
             <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
                  aria-hidden="true">
-                <path fill-rule="evenodd"
+                <path fillRule="evenodd"
                       d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                      clip-rule="evenodd"/>
+                      clipRule="evenodd"/>
             </svg>
         </button>
     )

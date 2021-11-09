@@ -54,57 +54,57 @@ const AssignmentView = () => {
                         <span className="ml-2">{data.assignments_by_pk.candidate_email}</span>
                     </h3>
                 </div>
-                <div class="border-t border-gray-200">
+                <div className="border-t border-gray-200">
                     <dl>
-                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Test
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 <Link className="text-indigo-500"
                                       to={"/tests/" + data.assignments_by_pk.test.id + "/view"}>{data.assignments_by_pk.test.name}</Link>
                             </dd>
                         </div>
-                        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Assignment instructions
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 <a className="text-indigo-500"
                                    href={"https://github.com/" + data.assignments_by_pk.test.github_repo}
                                    rel="noreferrer"
                                    target="_blank">{"https://github.com/" + data.assignments_by_pk.test.github_repo}</a>
                             </dd>
                         </div>
-                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Time limit
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 {testLimitToReadable(data.assignments_by_pk.time_limit)}
                             </dd>
                         </div>
-                        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Candidate to take test
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 {scheduledFor(data.assignments_by_pk)}
                             </dd>
                         </div>
-                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Candidate Code
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 {repoUrl(data.assignments_by_pk.github_repo_url)}
                             </dd>
                         </div>
-                        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
-                            <dt class="text-sm font-medium text-gray-500">
+                        <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-8">
+                            <dt className="text-sm font-medium text-gray-500">
                                 Current status
                             </dt>
-                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                 <AssignmentStatus status={data.assignments_by_pk.status}/>
                             </dd>
                         </div>

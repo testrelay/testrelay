@@ -1,45 +1,34 @@
 import React, {useRef, useState} from "react";
-import {Link, Redirect, useLocation} from "react-router-dom";
+import {Link} from "react-router-dom";
 import {getAuth, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup} from "firebase/auth";
 import firebase from "../../auth/firebase";
 import {ErrorAlert} from "../components/alert";
+import {readableError} from "../../auth/errors";
 
 const Login = (props) => {
     const google = new GoogleAuthProvider();
 
-    const location = useLocation();
     const auth = getAuth(firebase);
     const email = useRef();
     const password = useRef();
     const [error, setError] = useState(null);
-    const [redirect, setRedirect] = useState(null);
 
     const domain = window.location.host.replace("candidates.", "");
 
     const signin = async () => {
         try {
             await signInWithEmailAndPassword(auth, email.current.value, password.current.value);
-            setRedirect(true);
         } catch (error) {
-            setError(error.message);
+            setError(readableError(error.code));
         }
     }
 
     const signinWithGoogle = async () => {
         try {
             await signInWithPopup(auth, google)
-            setRedirect(true);
         } catch (error) {
-            setError(error.message);
+            setError(readableError(error.code));
         }
-    }
-
-    if (redirect) {
-        if (location.state && location.state.referrer) {
-            return <Redirect to={location.state.referrer}/>
-        }
-
-        return <Redirect to="/assignments"/>
     }
 
     return (
@@ -141,8 +130,10 @@ const Login = (props) => {
                         <a href={"//app." + domain + "/login"} className="text-indigo-500 mr-1">
                             login to recruiter portal
                         </a>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                     </div>
                 </div>
