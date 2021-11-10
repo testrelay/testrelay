@@ -61,11 +61,11 @@ const TimeSelect = (props) => {
 const SubmitButton = (props) => {
     if (props.loading) {
         return (
-            <button className="btn btn-disabled"><Loading /></button>
+            <button className="disabled bg-gray-500 text-white text-sm rounded px-4 py-2 w-auto">Loading</button>
         )
     }
 
-    return (<button className="btn btn-primary" onClick={props.click}>Submit</button>);
+    return (<button className="hover:bg-indigo-500 bg-indigo-600 text-white text-sm rounded px-4 py-2 w-auto" onClick={props.click}>Submit</button>);
 }
 
 const TestBody = ({ code, assignment }) => {
@@ -110,7 +110,6 @@ const TestBody = ({ code, assignment }) => {
     useEffect(() => {
         const linkGithub = async (data) => {
             if (code != null && data.github_username == null) {
-                console.log("linking github with data", data)
                 setLoading(true);
                 const functions = getFunctions(firebase, "europe-west2");
                 const authenticateGithub = httpsCallable(functions, "authenticateGithub");
@@ -118,7 +117,6 @@ const TestBody = ({ code, assignment }) => {
                 try {
                     const response = await authenticateGithub({ code });
                     if (response.data.status === "ok") {
-                        console.log("refetching")
                         refetch();
                         return;
                     } else {
@@ -142,7 +140,6 @@ const TestBody = ({ code, assignment }) => {
         }
 
         if (userData && userData.users.length > 0) {
-            console.log("setting user information");
             setUser(userData.users[0]);
             linkGithub(userData.users[0]);
         }
@@ -195,8 +192,8 @@ const TestBody = ({ code, assignment }) => {
     if (user && user.github_username) {
         return (
             <div>
-                <div className="mb-4">
-                    <p className="text-xl text-primary mb-4">Schedule a day & time for you to take the test.</p>
+                <div className="mb-2">
+                    <p className="text-xl text-indigo-500 mb-2 pt-2 border-t-2">Schedule a day & time for you to take the test.</p>
                     <label className="label"><span className="label-text">Choose a day to take your test</span></label>
                     <div className="relative">
                         <DatePicker
@@ -209,11 +206,11 @@ const TestBody = ({ code, assignment }) => {
                         />
                     </div>
                 </div>
-                <div className="mb-4">
+                <div className="mb-2">
                     <label className="label"><span className="label-text">Choose time you want to start the test</span></label>
                     <TimeSelect change={inputChange} value={form.test_time_chosen} />
                 </div>
-                <div className="mb-4">
+                <div className="mb-2">
                     <label className="label"><span className="label-text">And what timezone you'll be in when taking the test.</span></label>
                     <TimezoneSelect defaultTimeZone={defaultTimeZone} change={inputChange} value={form.test_timezone_chosen} />
                 </div>
@@ -226,7 +223,7 @@ const TestBody = ({ code, assignment }) => {
     return (
         <div className="border-t-2 pt-4">
             {error && <div className="mb-4"><ErrorAlert message={error} /></div>}
-            <p className="text-md mb-4">Before scheduling your technical test, you'll need to link your account to github. This is needed so TestRelay can invite you to the private github repo where you'll take your test.</p>
+            <p className="text-md mb-6">Before scheduling your technical test, you'll need to link your account to github. This is needed so TestRelay can invite you to the private github repo where you'll take your test.</p>
             <a href={`https://github.com/login/oauth/authorize?scope=user&client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&redirect_uri=${window.location.protocol + '//' + window.location.host + window.location.pathname}`} className="mb-2 group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 <span className="absolute left-0 inset-y-0 flex items-center pl-3">
                     <svg className="h-5 w-5 text-gray-100 group-hover:text-gray-200" width="20px" height="20px" viewBox="0 0 256 250" version="1.1" preserveAspectRatio="xMidYMid">
@@ -261,7 +258,6 @@ const AssignmentView = () => {
     }
 
     if (error) {
-        console.log("error from fetching assignment", error)
         return (
             <div className="container mx-auto px-4 max-w-2xl">
                 <div className="mt-14">
@@ -284,8 +280,8 @@ const AssignmentView = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-lg w-full p-8 shadow-lg rounded-lg bg-white">
-                <div className="mb-8">
+            <div className="max-w-lg w-full px-8 py-6 shadow-md rounded bg-white">
+                <div className="mb-4">
                     <h1 className="text-2xl mb-4">Hey Hugo</h1>
                     <p className="text-md"><b>{data.assignments_by_pk.test.business.name}</b> has invited you to take a technical test.<br />
                         You will have <b>{assignmentLimit(data.assignments_by_pk.time_limit)}</b> to take the test and complete it wil one of the following programming languages: <b>{languages(data.assignments_by_pk.test.test_languages)}</b></p>

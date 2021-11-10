@@ -14,17 +14,16 @@ const Buttons = (props) => {
 
     if (props.test_day_chosen == null) {
         return (
-            <div className="flex flex-wrap items-start space-x-2 flex-row justify-center md:justify-end">
-                <Link className="btn btn-primary" to={"/assignments/" + props.id + "/view"}>schedule</Link>
-            </div>
+            <Link className="hover:bg-indigo-500 bg-indigo-600 text-white text-sm rounded px-4 py-2 w-auto"
+                  to={"/assignments/" + props.id + "/view"}>schedule</Link>
         )
     }
 
     if (loading) {
         return (
             <div className="flex flex-wrap items-start space-x-2 flex-row justify-center md:justify-end">
-                <button className="btn btn-disabled">reschedule</button>
-                <button className="btn btn-disabled"><Loading/></button>
+                <button className="bg-gray-500 text-white text-sm rounded px-4 py-2 w-auto">reschedule</button>
+                <button className="bg-gray-500 text-white text-sm rounded px-4 py-2 w-auto">Loading</button>
             </div>
         )
     }
@@ -41,11 +40,14 @@ const Buttons = (props) => {
     const isError = () => {
         return e || error;
     }
+
     return (
         <div className="flex flex-wrap items-start space-x-2 flex-row justify-center md:justify-end">
-            <Link className="btn btn-primary h-10 min-h-0 shadow-lg"
+            <Link className="hover:bg-indigo-500 bg-indigo-600 text-white text-sm rounded px-4 py-2 w-auto"
                   to={"/assignments/" + props.id + "/view"}>reschedule</Link>
-            <button className="btn btn-warning h-10 min-h-0 shadow-lg" onClick={click}>cancel</button>
+            <button className="hover:bg-yellow-400 bg-yellow-500 text-white text-sm rounded px-4 py-2 w-auto"
+                    onClick={click}>cancel
+            </button>
             {isError() &&
             <div className="mt-2"><ErrorAlert message="could not cancel assignment, please try again"/></div>}
         </div>
@@ -60,12 +62,12 @@ const Schedule = (props) => {
         "July", "August", "September", "October", "November", "December"
     ];
 
-    if (day == null) {
-        const text = "Unscheduled, choose until " + monthNames[choose_until.getMonth()] + " " + choose_until.getDate() + ", " + choose_until.getFullYear();
+    if (props.test_day_chosen == null) {
+        const text = "choose until " + monthNames[choose_until.getMonth()] + " " + choose_until.getDate() + ", " + choose_until.getFullYear();
 
         return (
-            <div className="text-sm font-medium text-error">
-                {text}
+            <div className="text-sm">
+                <span className="text-yellow-400">Unscheduled, </span><span className="text-gray-500">{text}</span>
             </div>
         )
     }
@@ -74,7 +76,7 @@ const Schedule = (props) => {
 
     return (
         <div>
-            <div className="text-sm font-medium text-gray-900">
+            <div className="text-sm text-gray-800">
                 {text}
             </div>
             <div className="text-sm text-gray-500">
@@ -87,50 +89,49 @@ const Schedule = (props) => {
 const Assignments = (props) => {
     return props.assignments.map((e, i) => {
         if (e.status === "cancelled") {
-            return (<div key={i} className="relative bg-white shadow-md p-8 rounded-lg text-center md:text-left">
-                    <div className="bg-gray-800 opacity-5 absolute w-full h-full top-0 left-0 right-0 z-10"/>
+            return (
+                <div key={i} className="relative bg-white shadow-md opacity-50 px-8 py-4 rounded text-center md:text-left">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <div className="text-md md:text-sm font-medium text-primary mb-2">
+                            <div className="capitalize text-md md:text-sm font-medium text-indigo-600 mb-2">
                                 {e.test.business.name}
                             </div>
                             <div className="text-sm text-gray-500 flex items-center justify-center md:justify-start">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none"
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none"
                                      viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                           d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                <span className="ml-1">{assignmentLimit(e.time_limit)}</span>
+                                <span className="ml-1 text-sm">{assignmentLimit(e.time_limit)}</span>
                             </div>
                         </div>
-                        <div>
+                        <div >
                             <p className="text-warning">Cancelled</p>
                         </div>
-                        <div/>
                     </div>
                 </div>
             )
         }
         return (
-            <div key={i} className="relative shadow-md bg-white p-8 rounded-lg text-center md:text-left">
+            <div key={i} className="relative shadow-md bg-white px-8 py-4 rounded text-center md:text-left">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <div className="text-md md:text-sm font-medium text-primary mb-2">
+                        <div className="capitalize text-md md:text-sm font-medium text-primary mb-2">
                             {e.test.business.name}
                         </div>
                         <div className="text-sm text-gray-500 flex items-center justify-center md:justify-start">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0" fill="none"
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none"
                                  viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            <span className="ml-1">{assignmentLimit(e.time_limit)}</span>
+                            <span className="ml-1 text-sm">{assignmentLimit(e.time_limit)}</span>
                         </div>
                     </div>
                     <div>
                         <Schedule {...e} />
                     </div>
-                    <div>
+                    <div className="flex flex-wrap items-center space-x-2 flex-row justify-center md:justify-end">
                         <Buttons test_day_chosen={e.test_time_chosen} id={e.id}/>
                     </div>
                 </div>
