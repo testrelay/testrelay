@@ -1,5 +1,7 @@
 package core
 
+//go:generate mockgen -destination mocks/vcs.go -package mocks . VCSCollaboratorAdder,VCSUploader,VCSCleaner,VCSSubmissionChecker,VCSCreator
+
 type UploadDetails struct {
 	ID             int64
 	VCSRepoURL     string

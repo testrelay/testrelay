@@ -108,8 +108,6 @@ func run() {
 		config.BackendURL,
 	)
 	ah := eventsHttp.AssignmentHandler{
-		HasuraClient: hasuraClient,
-		GithubClient: githubClient,
 		Inviter: assignment.Inviter{
 			BusinessRepo:   hasuraClient,
 			Mailer:         mailer,

@@ -1,5 +1,6 @@
 package assignment
 
+//go:generate mockgen -destination mocks/scheduler.go -package mocks . Fetcher,ScheduleUpdater,SchedulerClient
 import (
 	"fmt"
 
@@ -7,14 +8,19 @@ import (
 	intTime "github.com/testrelay/testrelay/backend/internal/time"
 )
 
+// Fetcher defines an interface for a type that uses an id to retrieve a
+// full assignment from underlying storage.
 type Fetcher interface {
 	GetAssignment(id int) (WithTestDetails, error)
 }
 
-type UpdaterForScheduler interface {
-	UpdateAssignmentWithDetails(id int, arn string, url string) error
+// ScheduleUpdater defines an interface for a type that updates an assignment
+// with the id for a future scheduled run.
+type ScheduleUpdater interface {
+	UpdateAssignmentWithDetails(id int, runID string, url string) error
 }
 
+// StartInput holds information needed to schedule an assignment in the future.
 type StartInput struct {
 	Type string
 
@@ -24,18 +30,37 @@ type StartInput struct {
 	Data       interface{} `json:"data"`
 }
 
+// SchedulerClient defines a client that calls an entity that schedules
+// assignments for a future date. See scheduler package for implementations.
 type SchedulerClient interface {
 	Stop(id string) error
 	Start(input StartInput) (string, error)
 }
 
+// Scheduler orchestrates future assignment execution.
 type Scheduler struct {
 	Fetcher         Fetcher
 	SchedulerClient SchedulerClient
 	VCSCreator      core.VCSCreator
-	Updater         UpdaterForScheduler
+	Updater         ScheduleUpdater
 }
 
+// Stop terminates a previously started assignment using the assignmentID.
+func (s Scheduler) Stop(assignmentID int) error {
+	assignment, err := s.Fetcher.GetAssignment(assignmentID)
+	if err != nil {
+		return fmt.Errorf("could not fetch assignment id %d %w", assignmentID, err)
+	}
+
+	err = s.SchedulerClient.Stop(assignment.SchedulerID)
+	if err != nil {
+		return fmt.Errorf("could not stop previously scheduled assignment %w", err)
+	}
+
+	return nil
+}
+
+// Start schedules an assignment to execute at a date in the future.
 func (s Scheduler) Start(assignmentID int) error {
 	assignment, err := s.Fetcher.GetAssignment(assignmentID)
 	if err != nil {

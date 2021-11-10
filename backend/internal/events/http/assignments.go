@@ -1,5 +1,6 @@
 package http
 
+//go:generate mockgen -destination mocks/assignments.go -package mocks . AssignmentScheduler
 import (
 	"encoding/json"
 	"io"
@@ -11,8 +12,6 @@ import (
 
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/httputil"
-	"github.com/testrelay/testrelay/backend/internal/store/graphql"
-	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
 type HasuraEvent struct {
@@ -71,15 +70,21 @@ type AssignmentEvent struct {
 	CreatedAt    time.Time       `json:"created_at"`
 }
 
-type AssignmentHandler struct {
-	HasuraClient *graphql.HasuraClient
-	GithubClient *vcs.GithubClient
-	Inviter      assignment.Inviter
-	Logger       *zap.SugaredLogger
-	Scheduler    assignment.Scheduler
-	Runner       assignment.Runner
+// AssignmentScheduler defines an interface for a type that orchestrates the running of future technical assignments.
+type AssignmentScheduler interface {
+	Start(assignmentID int) error
+	Stop(assignmentID int) error
 }
 
+// AssignmentHandler implements a number of http.Handlers that are used in the base http server.
+type AssignmentHandler struct {
+	Inviter   assignment.Inviter
+	Logger    *zap.SugaredLogger
+	Scheduler AssignmentScheduler
+	Runner    assignment.Runner
+}
+
+// EventHandler defines a http.HandlerFunc that handles inbound hasura events.
 func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) {
 	var data HasuraEvent
 	err := json.NewDecoder(r.Body).Decode(&data)
@@ -143,6 +148,20 @@ func (a AssignmentHandler) EventHandler(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 		}
+
+		if data.Event.Op == "INSERT" && body.EventType == "cancelled" {
+			// scheduler client stop
+			err = a.Scheduler.Stop(body.AssignmentID)
+			if err != nil {
+				a.Logger.Error(
+					"could not stop assignment",
+					"assignment_id", body.AssignmentID,
+					"error", err,
+				)
+				httputil.BadRequest(w)
+				return
+			}
+		}
 	}
 
 	httputil.Success(w)
@@ -157,6 +176,8 @@ type StepPayload struct {
 	Comment string `json:"comment"`
 }
 
+// ProcessHandler defines a http.HandlerFunc that handles inbound one-off scheduled events from hasura.
+// These events deal with assignment run events. e.g. staring, ending, e.t.c.
 func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request) {
 	var data StepPayload
 	err := json.NewDecoder(r.Body).Decode(&data)
