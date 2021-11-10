@@ -12,7 +12,7 @@ FROM alpine:latest
 # to make sure that we can clone the test repos
 RUN apk --no-cache add ca-certificates && \
     apk update && apk upgrade && \
-    apk add --no-cache bash git openssh
+    apk add --no-cache bash git openssh tzdata
 
 COPY --from=builder /app/main .
 
