@@ -15,7 +15,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
   graphql-engine:
-    image: hasura/graphql-engine:v2.1.0-beta.1.cli-migrations-v3
+    image: hasura/graphql-engine:v2.1.0-beta.2.cli-migrations-v3
     ports:
       - "8080:8080"
     depends_on:
@@ -27,6 +27,9 @@ services:
     restart: always
     environment:
       BACKEND_URL: http://172.17.0.1:8000
+      # mac/windows specific:
+      # BACKEND_URL: http://host.docker.internal:8000
+      BACKEND_ACCESS_TOKEN: "myfunkystring"
       HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"

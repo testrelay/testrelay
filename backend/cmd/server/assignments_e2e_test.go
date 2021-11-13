@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -222,8 +223,13 @@ func assertWarningEmailSent(t *testing.T, fullAssignment assignment.WithTestDeta
 
 func sendStepPayload(t *testing.T, step string, fullAssignment assignment.WithTestDetails) {
 	body := newStepPayload(t, step, fullAssignment)
-	res, err := http.Post("http://localhost:8000/assignments/process", "application/json", body)
+	r, err := http.NewRequest(http.MethodPost, "http://localhost:8000/assignments/process", body)
+	assert.NoError(t, err)
 
+	r.Header.Set("Authorization", os.Getenv("ACCESS_TOKEN"))
+	r.Header.Set("Content-type", "application/json")
+
+	res, err := http.DefaultClient.Do(r)
 	require.NoError(t, err)
 	require.Equal(t, 200, res.StatusCode)
 }

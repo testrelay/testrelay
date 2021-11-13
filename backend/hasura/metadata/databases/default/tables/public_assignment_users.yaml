@@ -34,8 +34,10 @@ event_triggers:
     enable_manual: false
     insert:
       columns: "*"
+  headers:
+  - name: Authorization
+    value_from_env: BACKEND_ACCESS_TOKEN
   name: reviewers_added
-  request_transform: null
   retry_conf:
     interval_sec: 10
     num_retries: 0

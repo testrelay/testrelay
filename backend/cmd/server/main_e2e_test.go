@@ -30,7 +30,7 @@ import (
 var (
 	testUserGithubUsername     = "testrelaycandidate"
 	testReviewerGithubUsername = "testrelayrecruiter"
-	githubTestOwner            = "the-foreman"
+	githubTestOwner            = "testrelay-interviewer"
 )
 
 var (

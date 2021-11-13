@@ -22,24 +22,26 @@ import (
 // and the metadata api that is used in this client here:
 // 		https://hasura.io/docs/latest/graphql/core/api-reference/metadata-api/scheduled-triggers.html
 type HasuraAssignmentScheduler struct {
-	client     *http.Client
-	WebhookURL string
-	baseURL    string
+	client      *http.Client
+	webhookURL  string
+	baseURL     string
+	accessToken string
 }
 
 // NewHasuraAssignmentScheduler returns a  HasuraAssignmentScheduler with the underlying http
 // transport inserting the necessary hasura auth headers.
-func NewHasuraAssignmentScheduler(baseURL, token, webhookURL string) HasuraAssignmentScheduler {
+func NewHasuraAssignmentScheduler(baseURL, hasuraToken, accessToken, webhookURL string) HasuraAssignmentScheduler {
 	return HasuraAssignmentScheduler{
 		client: &http.Client{
 			Transport: &httputil.KeyTransport{
-				Value: token,
+				Value: hasuraToken,
 				Key:   "x-hasura-admin-secret",
 			},
 			Timeout: time.Second * 5,
 		},
-		WebhookURL: webhookURL,
-		baseURL:    baseURL,
+		webhookURL:  webhookURL,
+		baseURL:     baseURL,
+		accessToken: accessToken,
 	}
 }
 
@@ -68,11 +70,17 @@ func (h HasuraAssignmentScheduler) Start(input assignment.StartInput) (string, e
 	data := hasuraSchedulePayload{
 		Type: "create_scheduled_event",
 		Args: hasuraScheduleData{
-			Webhook:    h.WebhookURL + "/assignments/process",
+			Webhook:    h.webhookURL + "/assignments/process",
 			ScheduleAt: input.ScheduleAt,
 			Payload: stepPayload{
 				Step: input.Type,
 				Data: input.Data,
+			},
+			Headers: []header{
+				{
+					Name:  "Authorization",
+					Value: h.accessToken,
+				},
 			},
 		},
 	}
@@ -127,6 +135,12 @@ type hasuraScheduleData struct {
 	Webhook    string      `json:"webhook"`
 	ScheduleAt string      `json:"schedule_at"`
 	Payload    interface{} `json:"payload"`
+	Headers    []header    `json:"headers"`
+}
+
+type header struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type stepPayload struct {

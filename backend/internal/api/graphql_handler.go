@@ -11,21 +11,23 @@ import (
 	"github.com/graphql-go/graphql"
 
 	"github.com/testrelay/testrelay/backend/internal/auth"
+	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
-var (
-	verifier = auth.FirebaseVerifier{
-		ProjectID: "testrelay-323914",
-	}
+const (
+	introspectionOp = "IntrospectionQuery"
 )
 
-type QueryRequest struct {
+type queryRequest struct {
 	Query         string                 `json:"query"`
 	OperationName string                 `json:"operationName"`
 	Variables     map[string]interface{} `json:"variables"`
 }
 
-func NewSchema(resolver RepoResolver) (graphql.Schema, error) {
+// NewSchema initializes a new graphql schema using resolver
+// as the base graphql resolver. It returns an error if there
+// is an error initializing.
+func NewSchema(resolver *TestRepositoryResolver) (graphql.Schema, error) {
 	repoType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Repo",
 		Fields: graphql.Fields{
@@ -61,12 +63,18 @@ func NewSchema(resolver RepoResolver) (graphql.Schema, error) {
 	return schema, nil
 }
 
+// GraphQLQueryHandler is a struct that implements the base http.Handler interface.
+// It deals with inbound graphql requests, including introspection. Handing off
+// queries to local resolvers.
 type GraphQLQueryHandler struct {
 	hasuraURL string
 	schema    graphql.Schema
+	verifier  auth.FirebaseVerifier
 }
 
-func NewGraphQLQueryHandler(hasuraURL string, resolver RepoResolver) (*GraphQLQueryHandler, error) {
+// NewGraphQLQueryHandler returns a GraphQLQueryHandler with initialized base schema.
+// It returns an error if there is an issue initializing the schema for the handler.
+func NewGraphQLQueryHandler(hasuraURL, projectID string, resolver *TestRepositoryResolver) (*GraphQLQueryHandler, error) {
 	schema, err := NewSchema(resolver)
 	if err != nil {
 		return nil, err
@@ -75,23 +83,26 @@ func NewGraphQLQueryHandler(hasuraURL string, resolver RepoResolver) (*GraphQLQu
 	return &GraphQLQueryHandler{
 		hasuraURL: hasuraURL,
 		schema:    schema,
+		verifier: auth.FirebaseVerifier{
+			ProjectID: projectID,
+		},
 	}, nil
 }
 
-func (h *GraphQLQueryHandler) Query(w http.ResponseWriter, r *http.Request) {
-	var qr QueryRequest
+// ServeHTTP implements the http.Handler interface and deals with inbound graphql requests.
+// ServeHTTP expects that graphql queries, outside IntrospectionQueries, contain an Authorization header.
+func (h *GraphQLQueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var qr queryRequest
 
 	err := json.NewDecoder(r.Body).Decode(&qr)
 	if err != nil {
-		log.Printf("Could not decode body %s\n", err)
+		log.Printf("could not decode body %s\n", err)
 
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"errors": ["bad request"] }`))
+		httputil.BadRequest(w)
 		return
 	}
 
-	// if introspection let return the results now
-	if qr.OperationName == "IntrospectionQuery" {
+	if qr.OperationName == introspectionOp {
 		h.doQuery(context.Background(), qr, w)
 		return
 	}
@@ -99,23 +110,21 @@ func (h *GraphQLQueryHandler) Query(w http.ResponseWriter, r *http.Request) {
 	authH := r.Header.Get("Authorization")
 	splitToken := strings.Split(authH, "Bearer ")
 	if len(splitToken) < 2 {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"errors": ["unauthorized"] }`))
+		httputil.Unauthorized(w)
 		return
 	}
 
 	jwtToken := splitToken[1]
-	err = verifier.Parse(jwtToken)
+	err = h.verifier.Parse(jwtToken)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"errors": ["unauthorized"] }`))
+		httputil.Unauthorized(w)
 		return
 	}
 
 	h.doQuery(context.WithValue(context.Background(), "token", jwtToken), qr, w)
 }
 
-func (h *GraphQLQueryHandler) doQuery(ctx context.Context, qr QueryRequest, w http.ResponseWriter) {
+func (h *GraphQLQueryHandler) doQuery(ctx context.Context, qr queryRequest, w http.ResponseWriter) {
 	response := graphql.Do(graphql.Params{
 		Schema:         h.schema,
 		RequestString:  qr.Query,

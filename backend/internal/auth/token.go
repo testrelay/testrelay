@@ -13,11 +13,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-type Jwks struct {
-	Keys []JSONWebKeys `json:"keys"`
+type jwks struct {
+	Keys []keys `json:"keys"`
 }
 
-type JSONWebKeys struct {
+type keys struct {
 	Kty string   `json:"kty"`
 	Kid string   `json:"kid"`
 	Use string   `json:"use"`
@@ -77,7 +77,7 @@ func (a Auth0Verifier) getPemCert(token *jwt.Token) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	var jwks = Jwks{}
+	var jwks = jwks{}
 	err = json.NewDecoder(resp.Body).Decode(&jwks)
 
 	if err != nil {
@@ -98,80 +98,16 @@ func (a Auth0Verifier) getPemCert(token *jwt.Token) (string, error) {
 	return cert, nil
 }
 
-// CertsAPIEndpoint is endpoint of getting Public Key.
-var CertsAPIEndpoint = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+var certsURL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 
-// GetCertificate is useful for testing.
-var GetCertificate = getCertificate
-
-func getCertificates() (map[string]string, error) {
-	var certs map[string]string
-	res, err := http.Get(CertsAPIEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	data, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(data, &certs)
-
-	return certs, err
-}
-
-// GetCertificate returns certificate.
-func getCertificate(kid string) ([]byte, error) {
-	certs, err := getCertificates()
-	if err != nil {
-		return nil, err
-	}
-	certString := certs[kid]
-	cert := []byte(certString)
-	return cert, err
-}
-
-// GetCertificateFromToken returns cert from token.
-func GetCertificateFromToken(token *jwt.Token) ([]byte, error) {
-	// Get kid
-	kid, ok := token.Header["kid"]
-	if !ok {
-		return []byte{}, errors.New("kid not found")
-	}
-	kidString, ok := kid.(string)
-	if !ok {
-		return []byte{}, errors.New("kid cast error to string")
-	}
-	return GetCertificate(kidString)
-}
-
-func readPublicKey(cert []byte) (*rsa.PublicKey, error) {
-	publicKeyBlock, _ := pem.Decode(cert)
-	if publicKeyBlock == nil {
-		return nil, errors.New("invalid public key data")
-	}
-	if publicKeyBlock.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("invalid public key type: %s", publicKeyBlock.Type)
-	}
-	c, err := x509.ParseCertificate(publicKeyBlock.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	publicKey, ok := c.PublicKey.(*rsa.PublicKey)
-	if !ok {
-		return nil, errors.New("not RSA public key")
-	}
-	return publicKey, nil
-}
-
+// FirebaseVerifier verifies tokens for access control using firebase as the authority.
 type FirebaseVerifier struct {
 	ProjectID string
 }
 
+// VerifyToken verifies that the provided token t is a valid firebase jwt token.
 func (f *FirebaseVerifier) VerifyToken(t *jwt.Token) (interface{}, error) {
-	cert, err := GetCertificateFromToken(t)
+	cert, err := getCertificateFromToken(t)
 	if err != nil {
 		return "", err
 	}
@@ -183,6 +119,7 @@ func (f *FirebaseVerifier) VerifyToken(t *jwt.Token) (interface{}, error) {
 	return publicKey, nil
 }
 
+// Parse parses and validates token is a valid firebase token.
 func (f *FirebaseVerifier) Parse(token string) error {
 	parsed, err := jwt.Parse(token, f.VerifyToken)
 	if err != nil {
@@ -219,4 +156,64 @@ func (f *FirebaseVerifier) verifyPayload(t *jwt.Token) error {
 	}
 
 	return nil
+}
+
+func getCertificates() (map[string]string, error) {
+	var certs map[string]string
+	res, err := http.Get(certsURL)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &certs)
+
+	return certs, err
+}
+
+func getCertificate(kid string) ([]byte, error) {
+	certs, err := getCertificates()
+	if err != nil {
+		return nil, err
+	}
+	certString := certs[kid]
+	cert := []byte(certString)
+	return cert, err
+}
+
+func getCertificateFromToken(token *jwt.Token) ([]byte, error) {
+	// Get kid
+	kid, ok := token.Header["kid"]
+	if !ok {
+		return []byte{}, errors.New("kid not found")
+	}
+	kidString, ok := kid.(string)
+	if !ok {
+		return []byte{}, errors.New("kid cast error to string")
+	}
+	return getCertificate(kidString)
+}
+
+func readPublicKey(cert []byte) (*rsa.PublicKey, error) {
+	publicKeyBlock, _ := pem.Decode(cert)
+	if publicKeyBlock == nil {
+		return nil, errors.New("invalid public key data")
+	}
+	if publicKeyBlock.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("invalid public key type: %s", publicKeyBlock.Type)
+	}
+	c, err := x509.ParseCertificate(publicKeyBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	publicKey, ok := c.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("not RSA public key")
+	}
+	return publicKey, nil
 }

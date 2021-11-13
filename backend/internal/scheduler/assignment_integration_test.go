@@ -33,6 +33,7 @@ func TestHasuraAssignmentScheduler(t *testing.T) {
 	h := NewHasuraAssignmentScheduler(
 		"http://localhost:8080",
 		"myadminsecretkey",
+		"",
 		webhookURL,
 	)
 

@@ -10,27 +10,24 @@ import (
 	"github.com/graphql-go/graphql"
 	hGraph "github.com/hasura/go-graphql-client"
 
+	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/httputil"
-	"github.com/testrelay/testrelay/backend/internal/vcs"
 )
 
-type RepoResolver interface {
-	ResolveRepos(p graphql.ResolveParams) (interface{}, error)
-}
-
-type RepoCollector interface {
-	CollectRepos(installationID int64) ([]vcs.Repo, error)
-}
-
-type GraphResolver struct {
+// TestRepositoryResolver implements a graphql resolver using a vcs app installation to
+// find test repositories for a given organisation.
+type TestRepositoryResolver struct {
 	HasuraURL string
-	Collector RepoCollector
+	Collector core.RepoCollector
 }
 
-func (r *GraphResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error) {
+// ResolveRepos returns a list of test repositories for the provided business_id in the graphql params.
+// It expects that a vcs app has been installed on the business and fetches the installation_id from
+// storage. ResolveRepos errors if no valid installation can be found or if fetching repositories fails.
+func (r *TestRepositoryResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error) {
 	id, ok := p.Args["business_id"].(int)
 	if !ok {
-		return []vcs.Repo{}, nil
+		return []core.Repo{}, nil
 	}
 
 	var q struct {
@@ -50,12 +47,12 @@ func (r *GraphResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, erro
 	})
 	if err != nil {
 		log.Printf("failed to query hasura with id %d err %s\n", id, err)
-		return []vcs.Repo{}, nil
+		return []core.Repo{}, nil
 	}
 
 	if q.BusinessByPK.GithubInstallationID == "" {
 		log.Printf("returned nil github installation for business")
-		return []vcs.Repo{}, nil
+		return []core.Repo{}, nil
 	}
 
 	installationID := q.BusinessByPK.GithubInstallationID

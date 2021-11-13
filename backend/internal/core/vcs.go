@@ -34,3 +34,12 @@ type VCSSubmissionChecker interface {
 type VCSCreator interface {
 	CreateRepo(businessName, username string, id int) (string, error)
 }
+
+type Repo struct {
+	ID       int64  `json:"id"`
+	FullName string `json:"full_name"`
+}
+
+type RepoCollector interface {
+	CollectRepos(installationID int64) ([]Repo, error)
+}

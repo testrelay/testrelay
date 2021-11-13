@@ -22,11 +22,15 @@ var (
 	commaReg   = regexp.MustCompile(`,`)
 )
 
+// FirebaseClient provides a wrapper around the firebase auth api.
+// It exposes methods to use with user generation and authentication.
 type FirebaseClient struct {
 	Auth            *auth.Client
 	CustomClaimName string
 }
 
+// GetUserByEmail returns user.AuthInfo from the given email.
+// If the user is not found it will return a user.ErrorNotFound.
 func (f FirebaseClient) GetUserByEmail(email string) (user.AuthInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -36,7 +40,7 @@ func (f FirebaseClient) GetUserByEmail(email string) (user.AuthInfo, error) {
 			return user.AuthInfo{}, user.ErrorNotFound
 		}
 
-		return user.AuthInfo{}, fmt.Errorf("error occured fetchin user %s from firebase %w", email, err)
+		return user.AuthInfo{}, fmt.Errorf("error occured fetching user %s from firebase %w", email, err)
 	}
 
 	return user.AuthInfo{
@@ -52,6 +56,7 @@ func (f FirebaseClient) GetUserByEmail(email string) (user.AuthInfo, error) {
 	}, nil
 }
 
+// CreateUserFromAssignment generates a user for the newly created assignment.
 func (f FirebaseClient) CreateUserFromAssignment(a assignment.Full) (user.AuthInfo, error) {
 	toCreate := &auth.UserToCreate{}
 	toCreate.DisplayName(a.CandidateName).Email(a.CandidateEmail).Password(randomPassword(8))
@@ -77,6 +82,8 @@ func (f FirebaseClient) CreateUserFromAssignment(a assignment.Full) (user.AuthIn
 	}, nil
 }
 
+// SetCustomUserClaims adds custom firebase claims which are required for access control with hasura.
+// These include role, business access control and user identities.
 func (f FirebaseClient) SetCustomUserClaims(claims user.AuthClaims) error {
 	if claims.AuthUID == "" {
 		return errors.New("auth id cannot be nil when setting claims")
@@ -134,7 +141,9 @@ func (f FirebaseClient) SetCustomUserClaims(claims user.AuthClaims) error {
 	return nil
 }
 
-func (f FirebaseClient) PasswordResetLink(email, redirectLink string) (string, error) {
+// GetPasswordResetLink generates a password reset link for the provided email.
+// The provided redirectLink is the page the user is pushed to after successful password reset.
+func (f FirebaseClient) GetPasswordResetLink(email, redirectLink string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 

@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	AppURL     string
-	BackendURL string
-	APPEnv     string
+	AppURL      string
+	BackendURL  string
+	APPEnv      string
+	AccessToken string
 
 	SMTPHost       string
 	SMTPPort       int64
@@ -28,6 +29,7 @@ type Config struct {
 
 	GoogleServiceAccountLocation string
 	GoogleServiceAccount         string
+	FirebaseProjectID            string
 }
 
 func ConfigFromEnv() (Config, error) {
@@ -37,6 +39,7 @@ func ConfigFromEnv() (Config, error) {
 		AppURL:                       envOrDefaultString("APP_URL", "localhost"),
 		BackendURL:                   envOrDefaultString("BACKEND_URL", "backend"),
 		APPEnv:                       envOrDefaultString("APP_ENV", "development"),
+		AccessToken:                  e.envOrError("ACCESS_TOKEN"),
 		SMTPHost:                     e.envOrError("SMTP_HOST"),
 		SMTPPort:                     e.envOrErrorInt("SMTP_PORT"),
 		SMTPUsername:                 os.Getenv("SMTP_USER"),
@@ -50,6 +53,7 @@ func ConfigFromEnv() (Config, error) {
 		GithubAppID:                  e.envOrErrorInt("GITHUB_APP_ID"),
 		GoogleServiceAccountLocation: envOrDefaultString("GOOGLE_SERVICE_ACC_LOCATION", "service-acc.json"),
 		GoogleServiceAccount:         os.Getenv("GOOGLE_SERVICE_ACC"),
+		FirebaseProjectID:            e.envOrError("FIREBASE_PROJECT_ID"),
 	}
 
 	if c.GoogleServiceAccount != "" {

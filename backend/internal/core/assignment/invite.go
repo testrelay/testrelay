@@ -25,7 +25,7 @@ type AuthRepo interface {
 	GetUserByEmail(email string) (user.AuthInfo, error)
 	CreateUserFromAssignment(a Full) (user.AuthInfo, error)
 	SetCustomUserClaims(claims user.AuthClaims) error
-	PasswordResetLink(email, redirectLink string) (string, error)
+	GetPasswordResetLink(email, redirectLink string) (string, error)
 }
 
 type CandidateEmailData struct {
@@ -67,7 +67,7 @@ func (i Inviter) Invite(data Full) error {
 			return fmt.Errorf("could not create user %w\n", err)
 		}
 
-		link, err = i.Auth.PasswordResetLink(candidate.Email, link)
+		link, err = i.Auth.GetPasswordResetLink(candidate.Email, link)
 		if err != nil {
 			return fmt.Errorf("could not generate password reset link %w", err)
 		}

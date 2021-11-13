@@ -8,12 +8,9 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v39/github"
-)
 
-type Repo struct {
-	ID       int64  `json:"id"`
-	FullName string `json:"full_name"`
-}
+	"github.com/testrelay/testrelay/backend/internal/core"
+)
 
 type GithubRepoCollector struct {
 	GithubPK    []byte
@@ -33,7 +30,7 @@ func NewGithubRepoCollector(privateKey string, appID int64) (GithubRepoCollector
 }
 
 // CollectRepos fetches a list of the github repos scoped to the passed installationID.
-func (g GithubRepoCollector) CollectRepos(installationID int64) ([]Repo, error) {
+func (g GithubRepoCollector) CollectRepos(installationID int64) ([]core.Repo, error) {
 	itr, err := ghinstallation.New(
 		http.DefaultTransport,
 		g.GithubAppID,
@@ -52,9 +49,9 @@ func (g GithubRepoCollector) CollectRepos(installationID int64) ([]Repo, error) 
 		return nil, fmt.Errorf("failed to list repos %w", err)
 	}
 
-	var qrepos = make([]Repo, len(repos.Repositories))
+	var qrepos = make([]core.Repo, len(repos.Repositories))
 	for i, repo := range repos.Repositories {
-		qrepos[i] = Repo{
+		qrepos[i] = core.Repo{
 			ID:       *repo.ID,
 			FullName: *repo.FullName,
 		}

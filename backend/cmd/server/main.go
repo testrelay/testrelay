@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +21,7 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
 	eventsHttp "github.com/testrelay/testrelay/backend/internal/events/http"
+	"github.com/testrelay/testrelay/backend/internal/httputil"
 	"github.com/testrelay/testrelay/backend/internal/mail"
 	"github.com/testrelay/testrelay/backend/internal/options"
 	"github.com/testrelay/testrelay/backend/internal/scheduler"
@@ -56,7 +55,8 @@ func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
 
 	gh, err := api.NewGraphQLQueryHandler(
 		config.HasuraURL+"/v1/graphql",
-		&api.GraphResolver{
+		config.FirebaseProjectID,
+		&api.TestRepositoryResolver{
 			HasuraURL: config.HasuraURL + "/v1/graphql",
 			Collector: collector,
 		},
@@ -105,6 +105,7 @@ func run() {
 	scheduleClient := scheduler.NewHasuraAssignmentScheduler(
 		config.HasuraURL,
 		config.HasuraToken,
+		config.AccessToken,
 		config.BackendURL,
 	)
 	ah := eventsHttp.AssignmentHandler{
@@ -158,30 +159,22 @@ func run() {
 	flag.Parse()
 
 	r := mux.NewRouter()
-	r.Use(func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/healthz" {
-				b, _ := io.ReadAll(r.Body)
-				r.Body = io.NopCloser(bytes.NewBuffer(b))
-				logger.Info(r.URL.Path, string(b))
-			}
-
-			h.ServeHTTP(w, r)
-		})
-	})
+	r.Use(httputil.LogMiddleware(logger))
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
 
 	a := r.PathPrefix("/assignments").Subrouter()
+	a.Use(httputil.RequireAccessTokenMiddleware(config.AccessToken))
 	a.Methods(http.MethodPost).Path("/events").HandlerFunc(ah.EventHandler)
 	a.Methods(http.MethodPost).Path("/process").HandlerFunc(ah.ProcessHandler)
 
 	re := r.PathPrefix("/reviewers").Subrouter()
+	a.Use(httputil.RequireAccessTokenMiddleware(config.AccessToken))
 	re.Methods(http.MethodPost).Path("/events").HandlerFunc(rh.EventsHandler)
 
-	r.Methods(http.MethodPost).Path("/graphql").HandlerFunc(gh.Query)
+	r.Methods(http.MethodPost).Path("/graphql").Handler(gh)
 
 	srv := &http.Server{
 		Addr:         "0.0.0.0:8000",
