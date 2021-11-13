@@ -9,7 +9,7 @@ The TestRelay Github is a monorepo of all the services needed to run a full appl
 - [backend](backend) - The graphql backend service written in GO and using [hasura](https://github.com/hasura/graphql-engine)
 - [portal](portal) - The React frontend portal for both candidates and companies
 - [site](site) - The landing page and docs site
-  https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ
+
 ## How to contribute
 
 The overall process for contributing to TestRelay is:
