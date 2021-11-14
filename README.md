@@ -4,13 +4,13 @@
     <a href="https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ">
         <img src="https://img.shields.io/badge/chat-on%20slack-blue.svg?style=flat&logo=slack"  alt="slack"/> 
     </a>
-    <a href="https://github.com/pomerium/pomerium/actions?query=workflow%3ARelease">
-        <img src="https://img.shields.io/github/workflow/status/pomerium/pomerium/Release?style=flat"  alt="buil"/> 
+    <a href="https://github.com/testrelay/testrelay/actions?query=workflow%3Apublish">
+        <img src="https://img.shields.io/github/workflow/status/testrelay/testrelay/publish?style=flat"  alt="buil"/> 
     </a>
     <a href="https://github.com/testrelay/testrelay/blob/master/LICENSE">
         <img src="https://img.shields.io/github/license/pomerium/pomerium.svg"  alt="license"/> 
     </a>
-    <a href="https://twitter.com/intent/tweet?text=Get%20cost%20estimates%20for%20cloud%20infrastructure%20in%20pull%20requests!&url=https://www.infracost.io&hashtags=cloud,cost,aws,IaC,terraform">
+    <a href="https://twitter.com/intent/tweet?text=Open%20source%20platform%20for%20managing%20techical%20interviews&url=https://github.com/testrelay/testrelay&hashtags=interviews,opensource,technicaltest">
         <img alt="Tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social"/>
     </a>
 </p>
