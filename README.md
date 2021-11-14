@@ -10,7 +10,7 @@
     <a href="https://github.com/testrelay/testrelay/blob/master/LICENSE">
         <img src="https://img.shields.io/github/license/pomerium/pomerium.svg"  alt="license"/> 
     </a>
-    <a href="https://twitter.com/intent/tweet?text=Open%20source%20platform%20for%20managing%20techical%20interviews&url=https://github.com/testrelay/testrelay&hashtags=interviews,opensource,technicaltest">
+    <a href="https://twitter.com/intent/tweet?text=Open%20source%20platform%20for%20managing%20technical%20interviews&url=https://github.com/testrelay/testrelay&hashtags=interviews,opensource,technicaltest">
         <img alt="Tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social"/>
     </a>
 </p>
