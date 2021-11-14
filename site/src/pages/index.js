@@ -660,7 +660,9 @@ const IndexPage = () => {
                                                 free for now and we will always have a free tier.
                                             </p>
                                             <p className="text-xs text-gray-500 mt-3">Want a say in what's in the pro
-                                                plan, email <span className="text-indigo-500">hello@testrelay.io.</span>
+                                                plan, reach out on <a
+                                                    href="https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ"
+                                                    className="text-indigo-500">slack</a>
                                             </p>
                                         </div>
                                     </div>
