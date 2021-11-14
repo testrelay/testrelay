@@ -632,7 +632,7 @@ const IndexPage = () => {
                           </svg>
                         </span>Everything for free!
                                             </p>
-                                            <a href="//app.testrelay.com/register"
+                                            <a href="//app.testrelay.io/register"
                                                className="flex items-center mt-auto text-white bg-indigo-500 bborder-0 py-2 px-4 w-full focus:outline-none hover:bg-gray-500 rounded">Get
                                                 Started
                                                 <svg fill="none" stroke="currentColor" stroke-linecap="round"
