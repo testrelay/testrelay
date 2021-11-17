@@ -31,7 +31,7 @@ const AssignmentStatus = (props) => {
 
     return (
         <span
-            className={"relative inline-block px-4 py-1 font-semibold text-gray-700 leading-tight"}>
+            className={"relative inline-block px-4 py-1 font-semibold text-gray-700 text-xs leading-tight"}>
             <span aria-hidden className={"absolute inset-0 bg-" + colour + "-200 opacity-50 rounded-full"}/>
             <span className="relative">{props.status}</span>
         </span>
