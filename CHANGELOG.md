@@ -1,3 +1,11 @@
+## [0.1.3] - 2021-11-17
+
+Deployment pipeline fixes
+
+### Fixes
+
+* fix improper naming on pipeline that lead to invalid variables
+
 ## [0.1.2] - 2021-11-17
 
 Deployment pipeline fixes
@@ -31,6 +39,7 @@ First public release 🚀🚀. There will be bugs....!
 * **Candidate Portal** - Provide candidates a simple interface for managing their upcoming test and make sure they notify you about any scheduling changes.
 * **Secure Test Environments** - Automated access control to generated technical test repos.
 
+[0.1.3]: https://github.com/testrelay/testrelay/releases/tag/v0.1.3
 [0.1.2]: https://github.com/testrelay/testrelay/releases/tag/v0.1.2
 [0.1.1]: https://github.com/testrelay/testrelay/releases/tag/v0.1.1
 [0.1.0]: https://github.com/testrelay/testrelay/releases/tag/v0.1.0
