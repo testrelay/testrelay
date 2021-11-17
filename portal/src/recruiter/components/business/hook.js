@@ -23,7 +23,7 @@ const useBusinesses = () => {
 
     const [selected, setSelected] = useState(stored);
     const [loading, setLoading] = useState(!stored);
-    const {user, claims} = useFirebaseAuth(null);
+    const {user, claims, loading: userLoading} = useFirebaseAuth(null);
 
     const id = claims ? parseInt(claims["x-hasura-user-pk"]) : null;
     const {data, error} = useQuery(GET_BUSINESS, {
@@ -55,10 +55,10 @@ const useBusinesses = () => {
     }, [error]);
 
     useEffect(() => {
-        if (user == null) {
+        if (user == null && userLoading === false) {
             persistSelected(null);
         }
-    }, [user]);
+    }, [user, userLoading]);
 
     useEffect(() => {
         if (data) {
