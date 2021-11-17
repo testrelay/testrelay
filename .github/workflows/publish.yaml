@@ -61,6 +61,7 @@ jobs:
           cluster: ${{ secrets.ECR_CLUSTER }}
           wait-for-service-stability: true
   deploy_app_portal:
+    name: deploy app portal
     needs: [ deploy_backend ]
     runs-on: ubuntu-latest
     steps:
@@ -88,6 +89,7 @@ jobs:
           AWS_REGION: eu-west-2
           SOURCE_DIR: build
   deploy_candidate_portal:
+    name: deploy candidate portal
     needs: [ deploy_backend ]
     runs-on: ubuntu-latest
     steps:
