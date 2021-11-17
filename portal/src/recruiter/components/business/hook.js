@@ -41,7 +41,7 @@ const useBusinesses = () => {
         if (val) {
             localStorage.setItem('business', JSON.stringify(val));
         } else {
-            localStorage.setItem('business', null);
+            localStorage.removeItem('business');
         }
 
         setSelected(val);

@@ -148,7 +148,7 @@ const Create = (props) => {
                     <input name="name" value={name} onChange={(e) => {
                         setName(e.target.value)
                     }} className="input input-bordered w-full text-gray-700" type="text"
-                           placeholder="e.g. BE candidate Test"/>
+                           placeholder="e.g. Acme INC"/>
                 </div>
                 <div className="w-full bg-white px-8 py-4 mb-8 shadow-md rounded">
                     <SubmitBtn loading={loading} submit={insert}/>

@@ -31,7 +31,6 @@ const withBusinessRequired = (Component) => (props) => {
     const location = useLocation();
     const {loading, selected} = useBusiness();
     if (loading) {
-        console.log("waiting for master business to load")
         return (
             <Loading/>
         )
