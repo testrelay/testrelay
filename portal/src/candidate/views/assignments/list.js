@@ -90,7 +90,8 @@ const Assignments = (props) => {
     return props.assignments.map((e, i) => {
         if (e.status === "cancelled") {
             return (
-                <div key={i} className="relative bg-white shadow-md opacity-50 px-8 py-4 rounded text-center md:text-left">
+                <div key={i}
+                     className="relative bg-white shadow-md opacity-50 px-8 py-4 rounded text-center md:text-left">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <div className="capitalize text-md md:text-sm font-medium text-indigo-600 mb-2">
@@ -105,7 +106,7 @@ const Assignments = (props) => {
                                 <span className="ml-1 text-sm">{assignmentLimit(e.time_limit)}</span>
                             </div>
                         </div>
-                        <div >
+                        <div>
                             <p className="text-warning">Cancelled</p>
                         </div>
                     </div>
@@ -113,7 +114,7 @@ const Assignments = (props) => {
             )
         }
         return (
-            <div key={i} className="relative shadow-md bg-white px-8 py-4 rounded text-center md:text-left">
+            <div key={i} className="relative shadow-md bg-white px-8 py-4 mb-4 rounded text-center md:text-left">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <div className="capitalize text-md md:text-sm font-medium text-primary mb-2">
@@ -146,7 +147,6 @@ const List = () => {
             fetchPolicy: "network-only"
         }
     );
-    console.log(user);
 
     if (loading || claimLoading) {
         return (
