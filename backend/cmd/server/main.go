@@ -118,7 +118,7 @@ func run() {
 				Auth:            newFirebaseAuth(config),
 				CustomClaimName: "https://hasura.io/jwt/claims",
 			},
-			AppURL: config.AppURL,
+			CandidatesURL: config.CandidatesURL,
 		},
 		Logger: logger,
 		Runner: assignment.Runner{

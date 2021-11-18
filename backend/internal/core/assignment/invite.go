@@ -40,7 +40,7 @@ type Inviter struct {
 	AssignmentRepo Repo
 	UserRepo       UserRepo
 	Auth           AuthRepo
-	AppURL         string
+	CandidatesURL  string
 }
 
 func (i Inviter) Invite(data Full) error {
@@ -49,7 +49,7 @@ func (i Inviter) Invite(data Full) error {
 		return fmt.Errorf("could not fetch business to invite user %w", err)
 	}
 
-	link := fmt.Sprintf("%s/assignments/%d/view", i.AppURL, data.Id)
+	link := fmt.Sprintf("%s/assignments/%d/view", i.CandidatesURL, data.Id)
 	candidate, err := i.Auth.GetUserByEmail(data.CandidateEmail)
 	if err == nil {
 		err = i.Auth.SetCustomUserClaims(user.AuthClaims{

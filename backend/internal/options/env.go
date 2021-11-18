@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	AppURL      string
-	BackendURL  string
-	APPEnv      string
-	AccessToken string
+	AppURL        string
+	CandidatesURL string
+	BackendURL    string
+	APPEnv        string
+	AccessToken   string
 
 	SMTPHost       string
 	SMTPPort       int64
@@ -36,7 +37,8 @@ func ConfigFromEnv() (Config, error) {
 	var e errs
 
 	c := Config{
-		AppURL:                       envOrDefaultString("APP_URL", "localhost"),
+		AppURL:                       envOrDefaultString("APP_URL", "http://app.testrelay.test"),
+		CandidatesURL:                envOrDefaultString("APP_URL", "http://candidates.testrelay.test"),
 		BackendURL:                   envOrDefaultString("BACKEND_URL", "backend"),
 		APPEnv:                       envOrDefaultString("APP_ENV", "development"),
 		AccessToken:                  e.envOrError("ACCESS_TOKEN"),
