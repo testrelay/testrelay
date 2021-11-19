@@ -96,6 +96,7 @@ func (s Scheduler) Start(assignmentID int) error {
 		}
 	}
 
+	assignment.GithubRepoURL = githubRepoURL
 	schedulerID, err := s.SchedulerClient.Start(StartInput{
 		Type:       "start",
 		ID:         int64(assignment.ID),
