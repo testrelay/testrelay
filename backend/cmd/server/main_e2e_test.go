@@ -31,9 +31,8 @@ var (
 	testUserGithubUsername     = "testrelaycandidate"
 	testReviewerGithubUsername = "testrelayrecruiter"
 	githubTestOwner            = "testrelay-interviewer"
-)
+	testRepo                   = "https://github.com/testrelayrecruiter/a-test-repository.git"
 
-var (
 	githubClient    *github.Client
 	rawGraphlClient test.GraphQLClient
 	hasuraClient    *graphql.HasuraClient

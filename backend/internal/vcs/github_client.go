@@ -2,7 +2,6 @@ package vcs
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -22,7 +21,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	gitHttp "github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v39/github"
 	"golang.org/x/oauth2"
 
 	"github.com/testrelay/testrelay/backend/internal/core"
@@ -32,21 +31,48 @@ var (
 	letters = []rune("abcdefghijklmnopqrstuvwxyz")
 )
 
+// GithubClient handles communicating with the github api to orchestrate github repository management.
+// GithubClient communicates with the github API using two main authentication methods: an installationID
+// and an accessToken.
+//
+// Access token interactions are scoped to assignment repository generation and management.
+// These repositories are fully maintained by testrelay and thus use a single github user to perform actions.
+//
+// Installation interactions are scoped to reading the contents for business test repositories that have been
+// given access through an app installation.
 type GithubClient struct {
-	Client      *github.Client
-	AccessToken string
+	client          *github.Client
+	intervConf      GithubInterviewerConfig
+	newInstallation InstallationFunc
 }
 
-func NewClient(accessToken string) *GithubClient {
+// GithubInterviewerConfig represents fields required to generate repos using a personal access token.
+type GithubInterviewerConfig struct {
+	AccessToken string
+	Username    string
+	Email       string
+}
+
+// NewGithubClient returns a GithubClient with all the underlying github api client initialized.
+// repoCreatorAccessToken must be an github access token for a user that has full permissions to manage
+// github repos. This includes deletion and collaborator management. appPrivKeyLoc must be the file path
+// of a github private key that is the same app as appID.
+func NewGithubClient(intervConf GithubInterviewerConfig, appPrivKeyLoc string, appID int64) (*GithubClient, error) {
+	b, err := os.ReadFile(appPrivKeyLoc)
+	if err != nil {
+		return nil, fmt.Errorf("could not read github priv key file %w", err)
+	}
+
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: accessToken},
+		&oauth2.Token{AccessToken: intervConf.AccessToken},
 	)
 
 	tc := oauth2.NewClient(context.Background(), ts)
 	return &GithubClient{
-		Client:      github.NewClient(tc),
-		AccessToken: accessToken,
-	}
+		client:          github.NewClient(tc),
+		newInstallation: NewGithubAppInstallationFunc(appID, b),
+		intervConf:      intervConf,
+	}, nil
 }
 
 func (c GithubClient) CreateRepo(bName, username string, id int) (string, error) {
@@ -58,14 +84,10 @@ func (c GithubClient) CreateRepo(bName, username string, id int) (string, error)
 		MasterBranch: github.String("master"),
 	}
 
-	log.Printf("creating repository %s\n", name)
-	repo, _, err := c.Client.Repositories.Create(context.Background(), "", r)
+	repo, _, err := c.client.Repositories.Create(context.Background(), "", r)
 	if err != nil {
 		return "", fmt.Errorf("could not create repo %w", err)
 	}
-
-	log.Printf("repo generated: %+v\n", repo)
-	log.Printf("repo ownder: %+v\n", repo.GetOwner())
 
 	login := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
@@ -95,7 +117,7 @@ func (c GithubClient) AddCollaborator(repo string, username string) error {
 	var colabs []*github.User
 	var err error
 	for i := 0; i < 3; i++ {
-		colabs, _, err = c.Client.Repositories.ListCollaborators(context.Background(), owner, name, nil)
+		colabs, _, err = c.client.Repositories.ListCollaborators(context.Background(), owner, name, nil)
 		if err == nil {
 			break
 		}
@@ -108,7 +130,7 @@ func (c GithubClient) AddCollaborator(repo string, username string) error {
 		return fmt.Errorf("could not list colaborators for repo %s %s %w", owner, name, err)
 	}
 
-	invites, _, err := c.Client.Repositories.ListInvitations(context.Background(), owner, name, nil)
+	invites, _, err := c.client.Repositories.ListInvitations(context.Background(), owner, name, nil)
 	if err != nil {
 		return fmt.Errorf("could not list invites for repo %s %s %w", owner, name, err)
 	}
@@ -125,7 +147,7 @@ func (c GithubClient) AddCollaborator(repo string, username string) error {
 		return ErrorAlreadyCollaborator
 	}
 
-	_, err = c.Client.Repositories.AddCollaborator(context.Background(), owner, name, username, nil)
+	_, _, err = c.client.Repositories.AddCollaborator(context.Background(), owner, name, username, nil)
 	if err != nil {
 		return fmt.Errorf("could not add %s to generated repository %s %w", username, repo, err)
 	}
@@ -137,7 +159,7 @@ func (c GithubClient) addCollaborator(login string, repoName string, username st
 	var i int
 	var err error
 	for i < 3 {
-		_, err = c.Client.Repositories.AddCollaborator(context.Background(), login, repoName, username, nil)
+		_, _, err = c.client.Repositories.AddCollaborator(context.Background(), login, repoName, username, nil)
 		if err == nil {
 			return nil
 		}
@@ -173,34 +195,36 @@ func randSeq(n int) string {
 	return string(b)
 }
 
+// Upload uploads the test code into the assignment repository.
+// It first clones the test github repo specified for the assignment into the tmp directory.
+// After cloning, it bundles all the test files into a single commit. Signing it with a start test message.
+// The Upload method expects that the repository provided in data have the correct permissions to be
+// able to init a test. This means that the test repository needs to have access given to the github app
+// as part of an installation. The assignment repository needs to be also created by the user whom
+// c.accessToken stems from.
+//
+// Upload returns an error if there is any problem in execution of the upload. It cleans the temp directory
+// of the cloned repository.
 func (c GithubClient) Upload(data core.UploadDetails) error {
-	id := data.ID
-	from := data.TestVCSRepoURL
-	to := data.VCSRepoURL
-
-	owner, repo := getRepoName(from)
-	u, _, err := c.Client.Repositories.GetArchiveLink(context.Background(), owner, repo, github.Zipball, nil)
+	i, err := c.newInstallation(data.InstallationID)
 	if err != nil {
-		return fmt.Errorf("could not get archive link for repo %s %w", from, err)
+		return fmt.Errorf("failed to generate installation with id %d %w", data.InstallationID, err)
 	}
 
-	req, _ := c.Client.NewRequest("GET", u.String(), nil)
-	buf := bytes.NewBuffer([]byte{})
-	_, err = c.Client.Do(context.Background(), req, buf)
+	buf, err := i.DownloadRepo(context.Background(), data.TestVCSRepoURL)
 	if err != nil {
-		return fmt.Errorf("could not download zipFile %w", err)
+		return fmt.Errorf("could not download repo contents %w", err)
 	}
 
-	// Create the file
-	tmp := os.TempDir()
-	zipPath := tmp
-	clonePath := path.Join(zipPath, fmt.Sprintf("%d_%d", id, time.Now().Unix()))
+	zipPath := os.TempDir()
+	clonePath := path.Join(zipPath, fmt.Sprintf("%d_%d", data.ID, time.Now().Unix()))
 	err = os.MkdirAll(clonePath, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("could not create repo clone dir %s %w", clonePath, err)
 	}
+
 	defer func() {
-		err := RemoveContents(clonePath)
+		err := removeContents(clonePath)
 		if err != nil {
 			log.Printf("could not remove clone path dir %s\n", err)
 		}
@@ -224,9 +248,9 @@ func (c GithubClient) Upload(data core.UploadDetails) error {
 		return fmt.Errorf("could not plain init dir %s %w", clonePath, err)
 	}
 
-	_, err = r.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{to}})
+	_, err = r.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{data.VCSRepoURL}})
 	if err != nil {
-		return fmt.Errorf("could not create remote %s %w", to, err)
+		return fmt.Errorf("could not create remote %s %w", data.VCSRepoURL, err)
 	}
 
 	w, err := r.Worktree()
@@ -234,7 +258,7 @@ func (c GithubClient) Upload(data core.UploadDetails) error {
 		return fmt.Errorf("failed to init worktree %w", err)
 	}
 
-	_, err = Unzip(out.Name(), clonePath)
+	_, err = unzip(out.Name(), clonePath)
 	if err != nil {
 		return fmt.Errorf("could not untip to %s %w", clonePath, err)
 	}
@@ -254,12 +278,12 @@ func (c GithubClient) Upload(data core.UploadDetails) error {
 	}
 
 	abs := path.Join(clonePath, dirname)
-	err = CopyDirectory(abs, clonePath)
+	err = copyDirectory(abs, clonePath)
 	if err != nil {
 		return fmt.Errorf("could not copy ziped dir %s to %s %w", abs, clonePath, err)
 	}
 
-	err = RemoveContents(abs)
+	err = removeContents(abs)
 	if err != nil {
 		return fmt.Errorf("could not remove dir %s %w", abs, err)
 	}
@@ -271,8 +295,8 @@ func (c GithubClient) Upload(data core.UploadDetails) error {
 
 	commit, err := w.Commit("start test", &git.CommitOptions{
 		Author: &object.Signature{
-			Name:  "testrelay",
-			Email: "hugorut+2@gmail.com",
+			Name:  c.intervConf.Username,
+			Email: c.intervConf.Email,
 			When:  time.Now(),
 		},
 	})
@@ -288,8 +312,8 @@ func (c GithubClient) Upload(data core.UploadDetails) error {
 	err = r.Push(&git.PushOptions{
 		RemoteName: "origin",
 		Auth: &gitHttp.BasicAuth{
-			Username: "test",
-			Password: c.AccessToken,
+			Username: c.intervConf.Username,
+			Password: c.intervConf.AccessToken,
 		},
 		Force: true,
 	})
@@ -302,7 +326,7 @@ func (c GithubClient) Upload(data core.UploadDetails) error {
 
 func (c GithubClient) IsSubmitted(vcsURL, username string) (bool, error) {
 	owner, name := getRepoName(vcsURL)
-	prs, _, err := c.Client.PullRequests.List(context.Background(), owner, name, nil)
+	prs, _, err := c.client.PullRequests.List(context.Background(), owner, name, nil)
 	if err != nil {
 		return false, fmt.Errorf("could not list prs %w", err)
 	}
@@ -318,19 +342,19 @@ func (c GithubClient) IsSubmitted(vcsURL, username string) (bool, error) {
 
 func (c GithubClient) Cleanup(details core.CleanDetails) error {
 	owner, name := getRepoName(details.VCSRepoURL)
-	_, err := c.Client.Repositories.RemoveCollaborator(context.Background(), owner, name, details.CandidateUsername)
+	_, err := c.client.Repositories.RemoveCollaborator(context.Background(), owner, name, details.CandidateUsername)
 	if err != nil {
 		return fmt.Errorf("could not remove collaborator from test repo %s %s %w", owner, name, err)
 	}
 
-	invites, _, err := c.Client.Repositories.ListInvitations(context.Background(), owner, name, nil)
+	invites, _, err := c.client.Repositories.ListInvitations(context.Background(), owner, name, nil)
 	if err != nil {
 		return fmt.Errorf("could not list invitations for repo %s %s %s", owner, name, err)
 	}
 
 	for _, invite := range invites {
 		if invite.GetInvitee().GetLogin() == details.CandidateUsername {
-			_, err := c.Client.Repositories.DeleteInvitation(context.Background(), owner, name, invite.GetID())
+			_, err := c.client.Repositories.DeleteInvitation(context.Background(), owner, name, invite.GetID())
 			if err != nil {
 				return fmt.Errorf("could not remove collaborator invitation from test repo %s %s %w", owner, name, err)
 			}
@@ -354,7 +378,7 @@ func getRepoName(githubRepoURL string) (string, string) {
 	return pieces[len(pieces)-2], strings.Replace(end, ".git", "", 1)
 }
 
-func RemoveContents(dir string) error {
+func removeContents(dir string) error {
 	d, err := os.Open(dir)
 	if err != nil {
 		return err
@@ -373,7 +397,7 @@ func RemoveContents(dir string) error {
 	return os.Remove(dir)
 }
 
-func CopyDirectory(scrDir, dest string) error {
+func copyDirectory(scrDir, dest string) error {
 	entries, err := ioutil.ReadDir(scrDir)
 	if err != nil {
 		return err
@@ -394,18 +418,18 @@ func CopyDirectory(scrDir, dest string) error {
 
 		switch fileInfo.Mode() & os.ModeType {
 		case os.ModeDir:
-			if err := CreateIfNotExists(destPath, 0755); err != nil {
+			if err := createIfNotExists(destPath, 0755); err != nil {
 				return err
 			}
-			if err := CopyDirectory(sourcePath, destPath); err != nil {
+			if err := copyDirectory(sourcePath, destPath); err != nil {
 				return err
 			}
 		case os.ModeSymlink:
-			if err := CopySymLink(sourcePath, destPath); err != nil {
+			if err := copySymLink(sourcePath, destPath); err != nil {
 				return err
 			}
 		default:
-			if err := Copy(sourcePath, destPath); err != nil {
+			if err := copy(sourcePath, destPath); err != nil {
 				return err
 			}
 		}
@@ -424,7 +448,7 @@ func CopyDirectory(scrDir, dest string) error {
 	return nil
 }
 
-func Copy(srcFile, dstFile string) error {
+func copy(srcFile, dstFile string) error {
 	out, err := os.Create(dstFile)
 	if err != nil {
 		return err
@@ -446,7 +470,7 @@ func Copy(srcFile, dstFile string) error {
 	return nil
 }
 
-func Exists(filePath string) bool {
+func exists(filePath string) bool {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return false
 	}
@@ -454,8 +478,8 @@ func Exists(filePath string) bool {
 	return true
 }
 
-func CreateIfNotExists(dir string, perm os.FileMode) error {
-	if Exists(dir) {
+func createIfNotExists(dir string, perm os.FileMode) error {
+	if exists(dir) {
 		return nil
 	}
 
@@ -466,7 +490,7 @@ func CreateIfNotExists(dir string, perm os.FileMode) error {
 	return nil
 }
 
-func CopySymLink(source, dest string) error {
+func copySymLink(source, dest string) error {
 	link, err := os.Readlink(source)
 	if err != nil {
 		return err
@@ -474,7 +498,7 @@ func CopySymLink(source, dest string) error {
 	return os.Symlink(link, dest)
 }
 
-func Unzip(src string, dest string) ([]string, error) {
+func unzip(src string, dest string) ([]string, error) {
 	var filenames []string
 
 	r, err := zip.OpenReader(src)

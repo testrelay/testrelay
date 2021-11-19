@@ -95,10 +95,19 @@ func run() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	logger := newLogger(config)
 
 	hasuraClient := graphql.NewClient(config.HasuraURL+"/v1/graphql", config.HasuraToken)
-	githubClient := vcs.NewClient(config.GithubAccessToken)
+
+	githubClient, err := vcs.NewGithubClient(vcs.GithubInterviewerConfig{
+		AccessToken: config.GithubInterviewerAccessToken,
+		Username:    config.GithubInterviewerUsername,
+		Email:       config.GithubInterviewerEmail,
+	}, config.GithubPrivateKeyLocation, config.GithubAppID)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mailer := newMailer(config)
 
@@ -108,6 +117,7 @@ func run() {
 		config.AccessToken,
 		config.BackendURL,
 	)
+
 	ah := eventsHttp.AssignmentHandler{
 		Inviter: assignment.Inviter{
 			BusinessRepo:   hasuraClient,

@@ -198,7 +198,6 @@ func (a AssignmentHandler) ProcessHandler(w http.ResponseWriter, r *http.Request
 		a.Logger.Error(
 			"run step errored",
 			"step", data.Payload.Step,
-			"data", data.Payload.Data,
 			"error", err,
 		)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/hasura/go-graphql-client"
 
@@ -68,7 +69,8 @@ type Test struct {
 }
 
 type Business struct {
-	Name graphql.String `graphql:"name" json:"name"`
+	Name                 graphql.String `graphql:"name" json:"name"`
+	GithubInstallationID graphql.String `graphql:"github_installation_id" json:"github_installation_id"`
 }
 
 type Recruiter struct {
@@ -144,6 +146,7 @@ func (h HasuraClient) GetAssignment(id int) (assignment.WithTestDetails, error) 
 		return assignment.WithTestDetails{}, fmt.Errorf("could not fetch graphql assignment %w", err)
 	}
 
+	installationID, _ := strconv.ParseInt(string(q.AssignmentsByPK.Test.Business.GithubInstallationID), 10, 64)
 	return assignment.WithTestDetails{
 		Status:             string(q.AssignmentsByPK.Status),
 		TestTimeChosen:     string(q.AssignmentsByPK.TestTimeChosen),
@@ -170,7 +173,8 @@ func (h HasuraClient) GetAssignment(id int) (assignment.WithTestDetails, error) 
 		},
 		Test: assignment.Test{
 			Business: assignment.Business{
-				Name: string(q.AssignmentsByPK.Test.Business.Name),
+				Name:                 string(q.AssignmentsByPK.Test.Business.Name),
+				GithubInstallationID: installationID,
 			},
 			Name:       string(q.AssignmentsByPK.Test.Name),
 			GithubRepo: string(q.AssignmentsByPK.Test.GithubRepo),

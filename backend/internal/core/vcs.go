@@ -6,6 +6,7 @@ type UploadDetails struct {
 	ID             int64
 	VCSRepoURL     string
 	TestVCSRepoURL string
+	InstallationID int64
 }
 
 type CleanDetails struct {

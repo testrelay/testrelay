@@ -89,7 +89,8 @@ type Test struct {
 }
 
 type Business struct {
-	Name string `json:"name"`
+	Name                 string `json:"name"`
+	GithubInstallationID int64  `json:"github_installation_id"`
 }
 
 type SentDetails struct {

@@ -23,7 +23,10 @@ type Config struct {
 	HasuraURL   string
 	HasuraToken string
 
-	GithubAccessToken        string
+	GithubInterviewerAccessToken string
+	GithubInterviewerUsername    string
+	GithubInterviewerEmail       string
+
 	GithubPrivateKeyLocation string
 	GithubPrivateKey         string
 	GithubAppID              int64
@@ -49,7 +52,9 @@ func ConfigFromEnv() (Config, error) {
 		MailFromDomain:               envOrDefaultString("MAIL_FROM_DOMAIN", "@testrelay.io"),
 		HasuraURL:                    envOrDefaultString("HASURA_URL", "hasura"),
 		HasuraToken:                  e.envOrError("HASURA_TOKEN"),
-		GithubAccessToken:            e.envOrError("GITHUB_ACCESS_TOKEN"),
+		GithubInterviewerAccessToken: e.envOrError("GITHUB_ACCESS_TOKEN"),
+		GithubInterviewerUsername:    envOrDefaultString("GITHUB_USERNAME", "testrelay-interviewer"),
+		GithubInterviewerEmail:       e.envOrError("GITHUB_EMAIL"),
 		GithubPrivateKeyLocation:     envOrDefaultString("GITHUB_PRIVATE_KEY_LOCATION", "github-private-key.pem"),
 		GithubPrivateKey:             os.Getenv("GITHUB_PRIVATE_KEY"),
 		GithubAppID:                  e.envOrErrorInt("GITHUB_APP_ID"),

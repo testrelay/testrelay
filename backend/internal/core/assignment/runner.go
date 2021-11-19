@@ -122,6 +122,7 @@ func (r Runner) init(assignment WithTestDetails) error {
 		ID:             int64(assignment.ID),
 		VCSRepoURL:     assignment.GithubRepoURL,
 		TestVCSRepoURL: assignment.Test.GithubRepo,
+		InstallationID: assignment.Test.Business.GithubInstallationID,
 	})
 	if err != nil {
 		return fmt.Errorf("could not upload assignment to github %w", err)
