@@ -1,3 +1,13 @@
+## [0.1.4] - 2021-11-19
+
+various assignment related bugfixes
+
+### Fixes
+
+* fix download repo authorisation now through installation to prevent 404 error
+* blank github_repo_url being populated to assignment emails
+* password reset link to candidates portal 
+
 ## [0.1.3] - 2021-11-17
 
 Deployment pipeline fixes
@@ -39,6 +49,7 @@ First public release 🚀🚀. There will be bugs....!
 * **Candidate Portal** - Provide candidates a simple interface for managing their upcoming test and make sure they notify you about any scheduling changes.
 * **Secure Test Environments** - Automated access control to generated technical test repos.
 
+[0.1.4]: https://github.com/testrelay/testrelay/releases/tag/v0.1.4
 [0.1.3]: https://github.com/testrelay/testrelay/releases/tag/v0.1.3
 [0.1.2]: https://github.com/testrelay/testrelay/releases/tag/v0.1.2
 [0.1.1]: https://github.com/testrelay/testrelay/releases/tag/v0.1.1
