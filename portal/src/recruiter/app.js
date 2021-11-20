@@ -33,10 +33,7 @@ const App = () => {
                     <AuthorizedApolloProvider>
                         <BusinessProvider>
                             <Switch>
-                                <Route exact path="/">
-                                    <Redirect to="/login"/>
-                                </Route>
-
+                                <Route exact path="/"><Redirect to="/login"/></Route>
 
                                 <AuthedRoute redirect="/tests" path="/login" exact component={Login}/>
                                 <AuthedRoute redirect="/tests" path="/register" exact component={Register}/>

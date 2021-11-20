@@ -1,5 +1,5 @@
 import React from "react";
-import {BrowserRouter, Switch} from "react-router-dom";
+import {BrowserRouter, Redirect, Route, Switch} from "react-router-dom";
 import ProtectedRoute from "./auth/protected-route";
 
 import AssignmentView from "./views/assignments/view";
@@ -19,6 +19,8 @@ const App = () => {
                 <CandidateAuthProvider>
                     <AuthorizedApolloProvider role="candidate">
                         <Switch>
+                            <Route exact path="/"><Redirect to="/login"/></Route>
+
                             <AuthedRoute redirect="/assignments" path="/login" exact component={Login}/>
                             <AuthedRoute redirect="/assignments" path="/password-reset" exact component={ResetView}/>
 
