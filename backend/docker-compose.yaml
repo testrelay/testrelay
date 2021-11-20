@@ -16,16 +16,24 @@ services:
     environment:
       APP_URL: "localhost"
       APP_ENV: "development"
-      MG_API_KEY: "key-4bae313b78a19562397e877c70eee126"
-      MG_URL: "https://api.mailgun.net/v3"
+      ACCESS_TOKEN: "myfunkystring"
       HASURA_URL: "http://graphql-engine"
+      HASURA_TOKEN: "myadminsecretkey"
       SMTP_HOST: "localhost"
       SMTP_PORT: "1025"
-      HASURA_TOKEN: "myadminsecretkey"
       GITHUB_ACCESS_TOKEN: ""  # replace with generated github access token
+      GITHUB_USERNAME: "" # replace with the github username of the github interviewer
+      GITHUB_EMAIL: "" # replace with the email of the github interviewer
       GITHUB_PRIVATE_KEY: "" # replace with generated github private key
-      GITHUB_APP_ID: "131386" # replace with github ap
-      GOOGLE_SERVICE_ACC: "" #replace with firebase service account
+      GITHUB_APP_ID: "131386" # replace with github app id
+      GOOGLE_SERVICE_ACC_LO: "" #replace with firebase service account
+      GITHUB_PRIVATE_KEY_LOCATION: "github-private-key.e2e.pem" # replace with the location of your private key
+      GOOGLE_SERVICE_ACC_LOCATION: "service-acc.e2e.json" # replace with the location of your service account
+      BACKEND_URL: http://172.17.0.1:8000
+      # mac/windows specific:
+      # BACKEND_URL: http://host.docker.internal:8000
+      FIREBASE_PROJECT_ID: "myfirebaseproject-323914"
+
   postgres:
     image: postgres:12
     restart: always
@@ -34,7 +42,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
   graphql-engine:
-    image: hasura/graphql-engine:v2.1.0-beta.1.cli-migrations-v3
+    image: hasura/graphql-engine:v2.1.0-beta.2.cli-migrations-v3
     ports:
       - "8080:8080"
     depends_on:
