@@ -54,8 +54,8 @@ const Grid = () => {
     const [error, setError] = useState(null);
 
     const {loading: userLoading, data: userData, refetch, networkStatus} = useQuery(GET_AUTHED);
+
     useEffect(() => {
-        console.log(userLoading, userData, networkStatus)
         const linkGithub = async (data) => {
             if (code != null && data.github_username == null && networkStatus !== NetworkStatus.refetch) {
                 setLoading(true);

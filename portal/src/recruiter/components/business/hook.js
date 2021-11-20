@@ -28,7 +28,7 @@ const useBusinesses = () => {
     const id = claims ? parseInt(claims["x-hasura-user-pk"]) : null;
     const {data, error} = useQuery(GET_BUSINESS, {
         skip: !claims || selected,
-        nextFetchPolicy: 'network-only',
+        fetchPolicy: 'network-only',
     });
 
     /* eslint-disable */

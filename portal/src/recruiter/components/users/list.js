@@ -1,17 +1,18 @@
-import { useQuery } from "@apollo/client";
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Loading } from "../../../components";
-import { useBusiness } from "../business/hook";
+import {useQuery} from "@apollo/client";
+import React, {useEffect, useState} from "react";
+import {Link} from "react-router-dom";
+import {Loading} from "../../../components";
+import {useBusiness} from "../business/hook";
 import EmptyState from "../../../components/empty-state";
-import { GET_USERS } from "./queries";
+import {GET_USERS} from "./queries";
 
 const List = (props) => {
-    const { selected } = useBusiness();
-    const { data, loading: queryLoading } = useQuery(GET_USERS, {
+    const {selected} = useBusiness();
+    const {data, loading: queryLoading} = useQuery(GET_USERS, {
         variables: {
             business_id: selected.id
         },
+        fetchPolicy: "network-only",
     });
     const [loading, setLoading] = useState(queryLoading);
     const [users, setUsers] = useState([]);
@@ -27,7 +28,7 @@ const List = (props) => {
     }, [data])
 
     if (loading) {
-        return <Loading />
+        return <Loading/>
     }
 
     if (users.length === 1) {
@@ -51,9 +52,13 @@ const List = (props) => {
                             <p className="text-gray-500">{e.business_users[0].user_type}</p>
                         </div>
                         <div className="w-1/3 flex items-center justify-end">
-                            <Link to={"/users/" + e.id + "/view"}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg></Link>
+                            <Link to={"/users/" + e.id + "/view"}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none"
+                                     viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </Link>
                         </div>
                     </div>
                 </div>
