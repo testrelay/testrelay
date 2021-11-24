@@ -58,6 +58,10 @@ func (f FirebaseClient) GetUserByEmail(email string) (user.AuthInfo, error) {
 // CreateUser generates a user from the provided email. It expects the user will have a password
 // reset link generated. It sets a random password in the meantime.
 func (f FirebaseClient) CreateUser(name, email string) (user.AuthInfo, error) {
+	if name == "" {
+		name = "user"
+	}
+
 	toCreate := &auth.UserToCreate{}
 	toCreate.DisplayName(name).Email(email).Password(randomPassword(8))
 
