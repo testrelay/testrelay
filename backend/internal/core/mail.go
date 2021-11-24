@@ -1,5 +1,7 @@
 package core
 
+//go:generate mockgen -destination mocks/mailer.go -package mocks . Mailer
+
 type MailConfig struct {
 	TemplateName string
 	Subject      string

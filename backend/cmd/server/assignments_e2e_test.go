@@ -37,7 +37,8 @@ func TestAssignments(t *testing.T) {
 
 			// setup
 			fbRecruiter := createRecruiterFirebaseUser(tr)
-			trBusinessWithUser := createRecruiterAndBusiness(tr, fbRecruiter)
+			trBusinessWithUser, deleteB := rawGraphlClient.CreateRecruiterAndBusiness(t, fbRecruiter)
+			tr.AddCleanupStep(deleteB)
 
 			// insert assignment which triggers events
 			assignmentInsertData := insertAssignment(tr, trBusinessWithUser)
@@ -223,7 +224,7 @@ func assertFinishEmailSent(t *testing.T, fullAssignment assignment.WithTestDetai
 	assert.Contains(t, specialChar.ReplaceAllString(emails.Items[0].Content.Body, ""), "Your test is due is about to end.")
 }
 
-func assertWarningEmailSent(t *testing.T, fullAssignment assignment.WithTestDetails, trBusinessWithUser insertUserWithBusinessMuData) {
+func assertWarningEmailSent(t *testing.T, fullAssignment assignment.WithTestDetails, trBusinessWithUser test.InsertUserWithBusinessMuData) {
 	emails, ok := waitForEmail(t, fullAssignment.Candidate.Email)
 	require.True(t, ok)
 	assert.Equal(t, "<candidates@testrelay.io>", emails.Items[0].Content.Headers.From[0])
@@ -266,7 +267,7 @@ func assertEventScheduled(tr *test.Runner, details assignmentTestDetailsData) {
 	// todo check hasura event scheduled
 }
 
-func assertGithubRepoCreated(tr *test.Runner, details assignmentTestDetailsData, user insertUserWithBusinessMuData) *github.Repository {
+func assertGithubRepoCreated(tr *test.Runner, details assignmentTestDetailsData, user test.InsertUserWithBusinessMuData) *github.Repository {
 	r, _, err := githubClient.Repositories.Get(
 		context.Background(),
 		githubTestOwner,
@@ -443,7 +444,7 @@ func updateInsertedCandidateWithGithubUsername(tr *test.Runner, a insertAssignme
 	return d.UpdateUsers.Returning[0]
 }
 
-func assertCandidateClaims(tr *test.Runner, trBusinessWithUser insertUserWithBusinessMuData, cRec *auth.UserRecord, vad validateAssignmentQueryData) bool {
+func assertCandidateClaims(tr *test.Runner, trBusinessWithUser test.InsertUserWithBusinessMuData, cRec *auth.UserRecord, vad validateAssignmentQueryData) bool {
 	if len(vad.Users) == 0 {
 		return false
 	}
@@ -471,7 +472,7 @@ func assertCandidateCreatedInFirebase(tr *test.Runner, res insertAssignmentMuDat
 	return cRec
 }
 
-func assertEmailSent(tr *test.Runner, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) {
+func assertEmailSent(tr *test.Runner, res insertAssignmentMuData, trBusinessWithUser test.InsertUserWithBusinessMuData) {
 	qr, ok := waitForEmail(tr.T, res.Insert.CandidateEmail)
 	if ok {
 		assert.Equal(tr.T, "<candidates@testrelay.io>", qr.Items[0].Content.Headers.From[0])
@@ -529,7 +530,7 @@ type validateAssignmentVars struct {
 	Id    int    `json:"id" faker:"-"`
 }
 
-func assertAssignmentUpdated(tr *test.Runner, cRec *auth.UserRecord, res insertAssignmentMuData, trBusinessWithUser insertUserWithBusinessMuData) validateAssignmentQueryData {
+func assertAssignmentUpdated(tr *test.Runner, cRec *auth.UserRecord, res insertAssignmentMuData, trBusinessWithUser test.InsertUserWithBusinessMuData) validateAssignmentQueryData {
 	vav := validateAssignmentVars{
 		Email: strings.ToLower(res.Insert.CandidateEmail),
 		Id:    res.Insert.ID,
@@ -623,7 +624,7 @@ type insertAssignmentVars struct {
 	TestTimeLimit  int    `json:"test_time_limit" faker:"oneof: 100,200,600"`
 }
 
-func insertAssignment(tr *test.Runner, trBusinessWithUser insertUserWithBusinessMuData) insertAssignmentMuData {
+func insertAssignment(tr *test.Runner, trBusinessWithUser test.InsertUserWithBusinessMuData) insertAssignmentMuData {
 	candidateEmail := faker.Email()
 	v := insertAssignmentVars{
 		RecruiterID:    trBusinessWithUser.Insert.Creator.ID,
@@ -635,80 +636,6 @@ func insertAssignment(tr *test.Runner, trBusinessWithUser insertUserWithBusiness
 	var res insertAssignmentMuData
 	_, err := rawGraphlClient.Do(insertAssignmentMutation, toQueryVars(tr.T, &v), &res)
 	require.NoError(tr.T, err)
-	return res
-}
-
-var deleteBusinessMu = `
-mutation ($id: Int!, $user_id: Int!) {
-  delete_businesses_by_pk(id: $id) {
-    id
-  }
-  delete_users_by_pk(id: $user_id) {
-    id
-  }
-}
-`
-
-var insertUserWithBusiness = `
-mutation ($auth_id: String!, $email: String!, $business_name: String!, $github_installation_id: String!) {
-  insert_businesses_one(
-	object: {
-		name: $business_name, 
-		github_installation_id: $github_installation_id,
-		creator: {
-			data: {
-				email: $email, 
-				auth_id: $auth_id
-			}
-		}
-	}
-) {
-    id
-	name
-    creator {
-      id
-    }
-  }
-}
-
-`
-
-type insertUserWithBusinessMuData struct {
-	Insert struct {
-		ID      int    `json:"id"`
-		Name    string `json:"name"`
-		Creator struct {
-			ID int `json:"id"`
-		} `json:"creator"`
-	} `json:"insert_businesses_one"`
-}
-
-type insertUserWithBusinessVars struct {
-	AuthID               string `json:"auth_id" faker:"uuid_hyphenated"`
-	Email                string `json:"email" faker:"-"`
-	BusinessName         string `json:"business_name" faker:"username"`
-	GithubInstallationID string `json:"github_installation_id" faker:"-"`
-}
-
-func createRecruiterAndBusiness(tr *test.Runner, recruiterUser *auth.UserRecord) insertUserWithBusinessMuData {
-	vb := insertUserWithBusinessVars{
-		Email:                recruiterUser.Email,
-		AuthID:               recruiterUser.UID,
-		GithubInstallationID: os.Getenv("TEST_GITHUB_INSTALLATION"),
-	}
-
-	var res insertUserWithBusinessMuData
-	_, err := rawGraphlClient.Do(insertUserWithBusiness, toQueryVars(tr.T, &vb), &res)
-	require.NoError(tr.T, err)
-
-	tr.AddCleanupStep(func() error {
-		_, err := rawGraphlClient.Do(deleteBusinessMu, map[string]interface{}{
-			"id":      res.Insert.ID,
-			"user_id": res.Insert.Creator.ID,
-		}, nil)
-		return err
-	})
-
 	return res
 }
 

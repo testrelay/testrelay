@@ -15,17 +15,6 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
-func NewClient(url string, token string) *HasuraClient {
-	return &HasuraClient{
-		client: graphql.NewClient(
-			url,
-			&http.Client{
-				Transport: &httputil.KeyTransport{Key: "x-hasura-admin-secret", Value: token},
-			},
-		),
-	}
-}
-
 type AssignmentUsers struct {
 	Assignment ShortAssignment `graphql:"assignment" json:"assignment"`
 	User       User            `graphql:"user" json:"user"`
@@ -97,12 +86,60 @@ type assignmentMu struct {
 	} `graphql:"update_assignments_by_pk(pk_columns: {id: $id}, _set: {step_arn: $step_arn, github_repo_url: $github_repo_url})"`
 }
 
+// HasuraClient wraps a hasura graphql client with methods to CRUD data and return it in domain types.
 type HasuraClient struct {
 	client *graphql.Client
 }
 
+// NewHasuraClient returns a HasuraClient setting the base graphql client with a custom http.RoundTripper that
+// sets the provided token as an Authorization header. The url provided for client interactions must be
+// the full url to the root graphql query. e.g. /v1/graphql
+func NewHasuraClient(url string, token string) *HasuraClient {
+	return &HasuraClient{
+		client: graphql.NewClient(
+			url,
+			&http.Client{
+				Transport: &httputil.KeyTransport{Key: "x-hasura-admin-secret", Value: token},
+			},
+		),
+	}
+}
+
+// GetBusiness returns a short business from the given businessID.
+func (h HasuraClient) GetBusiness(businessID int64) (business.Short, error) {
+	var q getBusinessQuery
+	err := h.client.Query(context.Background(), &q, map[string]interface{}{
+		"id": graphql.Int(businessID),
+	})
+	if err != nil {
+		return business.Short{}, fmt.Errorf("couldn't retrieve business from id %d %w", businessID, err)
+	}
+
+	return business.Short{
+		ID:                   int(q.Business.ID),
+		Name:                 string(q.Business.Name),
+		GithubInstallationID: string(q.Business.GithubInstallationID),
+	}, nil
+}
+
+// LinkUser adds an entry to business_users with the given user type. LinkUser ignores the insert
+// if there is already an entry with the same details.
+func (h HasuraClient) LinkUser(userID, businessID int64, userType string) error {
+	var mu linkUserMutation
+	err := h.client.Mutate(context.Background(), &mu, map[string]interface{}{
+		"user_id":     graphql.Int(userID),
+		"business_id": graphql.Int(businessID),
+		"user_type":   graphql.String(userType),
+	})
+	if err != nil {
+		return fmt.Errorf("error linking user in hasura %w", err)
+	}
+
+	return nil
+}
+
 func (h HasuraClient) GetTestBusiness(testID int) (business.Short, error) {
-	var q BusinessQuery
+	var q getBusinessForTestQuery
 	err := h.client.Query(context.Background(), &q, map[string]interface{}{
 		"test_id": graphql.Int(testID),
 	})
@@ -111,8 +148,9 @@ func (h HasuraClient) GetTestBusiness(testID int) (business.Short, error) {
 	}
 
 	return business.Short{
-		Name: string(q.TestByPk.Business.Name),
-		ID:   int(q.TestByPk.Business.ID),
+		ID:                   int(q.TestByPk.Business.ID),
+		Name:                 string(q.TestByPk.Business.Name),
+		GithubInstallationID: string(q.TestByPk.Business.GithubInstallationID),
 	}, nil
 }
 

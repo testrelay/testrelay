@@ -27,13 +27,29 @@ type InsertUserMutation struct {
 	} `graphql:"insert_users_one(object: {auth_id: $auth_id, email: $email})"`
 }
 
-type BusinessQuery struct {
+type getBusinessForTestQuery struct {
 	TestByPk struct {
 		Business struct {
-			Name graphql.String `graphql:"name"`
-			ID   graphql.Int    `graphql:"id"`
+			GithubInstallationID graphql.String `graphql:"github_installation_id"`
+			Name                 graphql.String `graphql:"name"`
+			ID                   graphql.Int    `graphql:"id"`
 		} `graphql:"business"`
 	} `graphql:"tests_by_pk(id: $test_id)"`
+}
+
+type getBusinessQuery struct {
+	Business struct {
+		GithubInstallationID graphql.String `graphql:"github_installation_id"`
+		Name                 graphql.String `graphql:"name"`
+		ID                   graphql.Int    `graphql:"id"`
+	} `graphql:"businesses_by_pk(id: $id)"`
+}
+
+
+type linkUserMutation struct {
+	InsertBusinessUsersOne struct {
+		ID graphql.Int `graphql:"id"`
+	} `graphql:"insert_business_users_one(object: {business_id: $business_id, user_id: $user_id, user_type: $user_type},on_conflict: {constraint: business_users_business_id_user_id_user_type_key})"`
 }
 
 type UpdateAssignmentMutation struct {

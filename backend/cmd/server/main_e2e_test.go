@@ -106,7 +106,7 @@ func initGraphqlClients() {
 		},
 	}
 
-	hasuraClient = graphql.NewClient(os.Getenv("HASURA_URL")+"/v1/graphql", os.Getenv("HASURA_TOKEN"))
+	hasuraClient = graphql.NewHasuraClient(os.Getenv("HASURA_URL")+"/v1/graphql", os.Getenv("HASURA_TOKEN"))
 }
 
 func waitForPort(port int) error {

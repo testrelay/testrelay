@@ -1,17 +1,12 @@
 package assignment
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/core/business"
 	"github.com/testrelay/testrelay/backend/internal/core/user"
 )
-
-type UserRepo interface {
-	CreateUser(u *user.U) error
-}
 
 type BusinessRepo interface {
 	GetTestBusiness(testID int) (business.Short, error)
@@ -21,28 +16,28 @@ type Repo interface {
 	UpdateAssignmentToSent(a SentDetails) error
 }
 
-type AuthRepo interface {
-	GetUserByEmail(email string) (user.AuthInfo, error)
-	CreateUserFromAssignment(a Full) (user.AuthInfo, error)
-	SetCustomUserClaims(claims user.AuthClaims) error
-	GetPasswordResetLink(email, redirectLink string) (string, error)
+type UserCreator interface {
+	FirstOrCreate(data user.CreateParams) (user.AuthInfo, error)
 }
 
-type CandidateEmailData struct {
+type candidateEmailData struct {
 	EmailLink    string
 	BusinessName string
 	Assignment   Full
 }
 
+// Inviter invites users for a given assignment.
+// It handles state management and user notification via email.
 type Inviter struct {
 	BusinessRepo   BusinessRepo
 	Mailer         core.Mailer
 	AssignmentRepo Repo
-	UserRepo       UserRepo
-	Auth           AuthRepo
+	UserCreator    UserCreator
 	CandidatesURL  string
 }
 
+// Invite invites a user from the provided Full assignment. It uses
+// the candidate email and name from the assignment data to generate a new user and link it to the parent business.
 func (i Inviter) Invite(data Full) error {
 	b, err := i.BusinessRepo.GetTestBusiness(data.TestId)
 	if err != nil {
@@ -50,31 +45,14 @@ func (i Inviter) Invite(data Full) error {
 	}
 
 	link := fmt.Sprintf("%s/assignments/%d/view", i.CandidatesURL, data.Id)
-	candidate, err := i.Auth.GetUserByEmail(data.CandidateEmail)
-	if err == nil {
-		err = i.Auth.SetCustomUserClaims(user.AuthClaims{
-			AuthUID:     candidate.UID,
-			BusinessIDs: []int64{int64(b.ID)},
-		})
-		if err != nil {
-			return fmt.Errorf("could not update existing user claims %w", err)
-		}
-	}
-
-	if err != nil && errors.Is(err, user.ErrorNotFound) {
-		candidate, err = i.createUser(data, int64(b.ID))
-		if err != nil {
-			return fmt.Errorf("could not create user %w\n", err)
-		}
-
-		link, err = i.Auth.GetPasswordResetLink(candidate.Email, link)
-		if err != nil {
-			return fmt.Errorf("could not generate password reset link %w", err)
-		}
-	}
-
+	candidate, err := i.UserCreator.FirstOrCreate(user.CreateParams{
+		Name:         data.CandidateName,
+		Email:        data.CandidateEmail,
+		BusinessId:   int64(b.ID),
+		RedirectLink: link,
+	})
 	if err != nil {
-		return fmt.Errorf("error getting user from email for invite event %w\n", err)
+		return fmt.Errorf("error inviting user from assignment create event %w\n", err)
 	}
 
 	err = i.Mailer.Send(core.MailConfig{
@@ -82,7 +60,7 @@ func (i Inviter) Invite(data Full) error {
 		Subject:      b.Name + " has invited you to a technical test",
 		From:         "candidates",
 		To:           candidate.Email,
-	}, CandidateEmailData{
+	}, candidateEmailData{
 		EmailLink:    link,
 		BusinessName: b.Name,
 		Assignment:   data,
@@ -102,31 +80,4 @@ func (i Inviter) Invite(data Full) error {
 	}
 
 	return nil
-}
-
-func (i Inviter) createUser(data Full, businessID int64) (user.AuthInfo, error) {
-	candidate, err := i.Auth.CreateUserFromAssignment(data)
-	if err != nil {
-		return candidate, fmt.Errorf("could not create candidate user %w", err)
-	}
-
-	u := user.U{
-		UID:   candidate.UID,
-		Email: candidate.Email,
-	}
-	err = i.UserRepo.CreateUser(&u)
-	if err != nil {
-		return candidate, fmt.Errorf("could not create graphql candidate %w", err)
-	}
-
-	err = i.Auth.SetCustomUserClaims(user.AuthClaims{
-		ID:           u.ID,
-		AuthUID:      candidate.UID,
-		Interviewing: []int64{businessID},
-	})
-	if err != nil {
-		return candidate, fmt.Errorf("could not create custom claims for user %w", err)
-	}
-
-	return candidate, err
 }

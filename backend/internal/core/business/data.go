@@ -1,6 +1,7 @@
 package business
 
 type Short struct {
-	Name string
-	ID   int
+	GithubInstallationID string
+	Name                 string
+	ID                   int
 }

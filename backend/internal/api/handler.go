@@ -24,38 +24,39 @@ type queryRequest struct {
 	Variables     map[string]interface{} `json:"variables"`
 }
 
-// NewSchema initializes a new graphql schema using resolver
-// as the base graphql resolver. It returns an error if there
-// is an error initializing.
-func NewSchema(resolver *TestRepositoryResolver) (graphql.Schema, error) {
-	repoType := graphql.NewObject(graphql.ObjectConfig{
-		Name: "Repo",
-		Fields: graphql.Fields{
-			"id": &graphql.Field{
-				Type: graphql.Int,
-			},
-			"full_name": &graphql.Field{
-				Type: graphql.String,
-			},
-		},
-	})
+// Resolver is an interface type that defines a graphl api resolver.
+// It must return a set of graphql fields with fieldtypes and query resolvers initialised.
+type Resolver interface {
+	// Fields returns first the graphql query fields, second the graphql mutation fields.
+	// Either can be nil.
+	Fields() (graphql.Fields, graphql.Fields)
+}
 
-	fields := graphql.Fields{
-		"repos": &graphql.Field{
-			Type:        graphql.NewList(repoType),
-			Description: "Get business repos",
-			Args: graphql.FieldConfigArgument{
-				"business_id": &graphql.ArgumentConfig{
-					Type: graphql.Int,
-				},
-			},
-			Resolve: resolver.ResolveRepos,
-		},
+// newSchema initializes a new graphql schema using the given resolvers to build schema fields.
+// Note fields with the same name/key will be overwritten with the last entry.
+func newSchema(resolvers ...Resolver) (graphql.Schema, error) {
+	queries := make(graphql.Fields)
+	mutations := make(graphql.Fields)
+	for _, r := range resolvers {
+		qs, mus := r.Fields()
+
+		if qs != nil {
+			for k, field := range qs {
+				queries[k] = field
+			}
+		}
+
+		if mus != nil {
+			for k, field := range mus {
+				mutations[k] = field
+			}
+		}
 	}
 
-	rootQuery := graphql.ObjectConfig{Name: "RootQuery", Fields: fields}
-	schemaConfig := graphql.SchemaConfig{Query: graphql.NewObject(rootQuery)}
-	schema, err := graphql.NewSchema(schemaConfig)
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query:    graphql.NewObject(graphql.ObjectConfig{Name: "RootQuery", Fields: queries}),
+		Mutation: graphql.NewObject(graphql.ObjectConfig{Name: "RootMutation", Fields: mutations}),
+	})
 	if err != nil {
 		return graphql.Schema{}, fmt.Errorf("could not generate new schema %w", err)
 	}
@@ -74,8 +75,10 @@ type GraphQLQueryHandler struct {
 
 // NewGraphQLQueryHandler returns a GraphQLQueryHandler with initialized base schema.
 // It returns an error if there is an issue initializing the schema for the handler.
-func NewGraphQLQueryHandler(hasuraURL, projectID string, resolver *TestRepositoryResolver) (*GraphQLQueryHandler, error) {
-	schema, err := NewSchema(resolver)
+// It accepts any number of graphql Resolvers. These Resolvers must define unique query/mutation keys
+// Otherwise they will be overwritten when the schema is initialized.
+func NewGraphQLQueryHandler(hasuraURL, projectID string, resolvers ...Resolver) (*GraphQLQueryHandler, error) {
+	schema, err := newSchema(resolvers...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +94,7 @@ func NewGraphQLQueryHandler(hasuraURL, projectID string, resolver *TestRepositor
 
 // ServeHTTP implements the http.Handler interface and deals with inbound graphql requests.
 // ServeHTTP expects that graphql queries, outside IntrospectionQueries, contain an Authorization header.
+// The authorization header must pass jwt validation checks in order to pass to a query Resolver.
 func (h *GraphQLQueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var qr queryRequest
 

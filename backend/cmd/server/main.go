@@ -20,6 +20,7 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/core"
 	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/assignmentuser"
+	"github.com/testrelay/testrelay/backend/internal/core/user"
 	eventsHttp "github.com/testrelay/testrelay/backend/internal/events/http"
 	"github.com/testrelay/testrelay/backend/internal/httputil"
 	"github.com/testrelay/testrelay/backend/internal/mail"
@@ -45,27 +46,6 @@ func newFirebaseAuth(config options.Config) *firebaseAuth.Client {
 	}
 
 	return a
-}
-
-func newGraphQLQueryHandler(config options.Config) *api.GraphQLQueryHandler {
-	collector, err := vcs.NewGithubRepoCollector(config.GithubPrivateKeyLocation, config.GithubAppID)
-	if err != nil {
-		log.Fatalf("could not init github repository collector %s", err)
-	}
-
-	gh, err := api.NewGraphQLQueryHandler(
-		config.HasuraURL+"/v1/graphql",
-		config.FirebaseProjectID,
-		&api.TestRepositoryResolver{
-			HasuraURL: config.HasuraURL + "/v1/graphql",
-			Collector: collector,
-		},
-	)
-	if err != nil {
-		log.Fatalf("could not init graphql api handler %s", err)
-	}
-
-	return gh
 }
 
 func newMailer(config options.Config) mail.SMTPMailer {
@@ -98,7 +78,7 @@ func run() {
 
 	logger := newLogger(config)
 
-	hasuraClient := graphql.NewClient(config.HasuraURL+"/v1/graphql", config.HasuraToken)
+	hasuraClient := graphql.NewHasuraClient(config.HasuraURL+"/v1/graphql", config.HasuraToken)
 
 	githubClient, err := vcs.NewGithubClient(vcs.GithubInterviewerConfig{
 		AccessToken: config.GithubInterviewerAccessToken,
@@ -118,17 +98,21 @@ func run() {
 		config.BackendURL,
 	)
 
+	uCreator := user.AuthCreator{
+		Auth: auth.FirebaseClient{
+			Auth:            newFirebaseAuth(config),
+			CustomClaimName: "https://hasura.io/jwt/claims",
+		},
+		Repo: hasuraClient,
+	}
+
 	ah := eventsHttp.AssignmentHandler{
 		Inviter: assignment.Inviter{
 			BusinessRepo:   hasuraClient,
 			Mailer:         mailer,
 			AssignmentRepo: hasuraClient,
-			UserRepo:       hasuraClient,
-			Auth: auth.FirebaseClient{
-				Auth:            newFirebaseAuth(config),
-				CustomClaimName: "https://hasura.io/jwt/claims",
-			},
-			CandidatesURL: config.CandidatesURL,
+			UserCreator:    uCreator,
+			CandidatesURL:  config.CandidatesURL,
 		},
 		Logger: logger,
 		Runner: assignment.Runner{
@@ -162,7 +146,31 @@ func run() {
 		},
 	}
 
-	gh := newGraphQLQueryHandler(config)
+	collector, err := vcs.NewGithubRepoCollector(config.GithubPrivateKeyLocation, config.GithubAppID)
+	if err != nil {
+		log.Fatalf("could not init github repository collector %s", err)
+	}
+
+	gh, err := api.NewGraphQLQueryHandler(
+		config.HasuraURL+"/v1/graphql",
+		config.FirebaseProjectID,
+		&api.RepositoryResolver{
+			HasuraURL: config.HasuraURL + "/v1/graphql",
+			Collector: collector,
+		},
+		&api.UserResolver{
+			Inviter: user.Inviter{
+				BusinessFetcher: hasuraClient,
+				BusinessLinker:  hasuraClient,
+				UserCreator:     uCreator,
+				Mailer:          mailer,
+			},
+			Logger: logger,
+		},
+	)
+	if err != nil {
+		log.Fatalf("could not init graphql api handler %s", err)
+	}
 
 	var wait time.Duration
 	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")

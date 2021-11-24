@@ -5,6 +5,8 @@ package mail_test
 
 import (
 	"encoding/json"
+	"io"
+	"mime/quotedprintable"
 	"net/http"
 	"strings"
 	"testing"
@@ -17,13 +19,18 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/mail"
 )
 
-type stubEmailData struct {
+type stubEmailSendingData struct {
 	CandidateName string
 	Test          struct {
 		Business struct {
 			Name string
 		}
 	}
+}
+
+type stubEmailRecruiterInviteData struct {
+	Link         string
+	BusinessName string
 }
 
 type mailhogQueryResponse struct {
@@ -84,42 +91,97 @@ func TestSMTPMailer(t *testing.T) {
 		email := "test@example.com"
 		from := "testfrom"
 		subject := "my funky subject"
-		err := mailer.Send(core.MailConfig{
-			TemplateName: "submitted",
-			Subject:      subject,
-			From:         from,
-			To:           email,
-		}, stubEmailData{
-			CandidateName: "test name",
-			Test: struct {
-				Business struct {
-					Name string
-				}
-			}{
-				Business: struct {
-					Name string
+
+		t.Run("submitted", func(t *testing.T) {
+			err := mailer.Send(core.MailConfig{
+				TemplateName: "submitted",
+				Subject:      subject,
+				From:         from,
+				To:           email,
+			}, stubEmailSendingData{
+				CandidateName: "test name",
+				Test: struct {
+					Business struct {
+						Name string
+					}
 				}{
-					Name: "test biz",
+					Business: struct {
+						Name string
+					}{
+						Name: "test biz",
+					},
 				},
-			},
+			})
+			require.NoError(t, err)
+
+			data := getEmail(t, email)
+			defer deleteEmails(t, data)
+
+			expectedBody := `<h3>Hello test name,</h3><p>Thanks for submitting your assignment. test biz will now review your code and get back to you with feedback.</p>`
+			assertEmail(t, data, from+domain, subject, expectedBody)
 		})
-		require.NoError(t, err)
 
-		res, err := http.Get("http://localhost:8025/api/v2/search?kind=to&query=" + email)
-		require.NoError(t, err)
+		t.Run("recruiter-invite", func(t *testing.T) {
+			err := mailer.Send(core.MailConfig{
+				TemplateName: "recruiter-invite",
+				Subject:      subject,
+				From:         from,
+				To:           email,
+			}, stubEmailRecruiterInviteData{
+				Link:         "http://mylink",
+				BusinessName: "testee",
+			})
+			require.NoError(t, err)
 
-		var data mailhogQueryResponse
-		err = json.NewDecoder(res.Body).Decode(&data)
-		require.NoError(t, err)
+			data := getEmail(t, email)
+			defer deleteEmails(t, data)
 
-		assert.Len(t, data.Items, 1)
-		defer deleteEmails(t, data)
+			expectedBody := `You've received an invite to join testee on TestRelay. Click the link <a href="http://mylink">here</a> to login into the testee dashboard.</p>`
+			assertEmail(t, data, from+domain, subject, expectedBody)
+		})
 
-		actual := data.Items[0]
-		assert.Equal(t, "<"+from+domain+">", actual.Content.Headers.From[0])
-		assert.Equal(t, subject, actual.Content.Headers.Subject[0])
-		assert.Contains(t, strings.ReplaceAll(actual.Content.Body, "\r\n", ""), "<h1>Hello test name,</h1><p>Thanks for submitting your assignment. test biz will now review your cod=e and get back to you with feedback.</p>")
+		t.Run("recruiter-invite-new", func(t *testing.T) {
+			err := mailer.Send(core.MailConfig{
+				TemplateName: "recruiter-invite-new",
+				Subject:      subject,
+				From:         from,
+				To:           email,
+			}, stubEmailRecruiterInviteData{
+				Link:         "http://mylink",
+				BusinessName: "testee",
+			})
+			require.NoError(t, err)
+
+			data := getEmail(t, email)
+			defer deleteEmails(t, data)
+
+			expectedBody := `<p>You've received an invite to join testee on TestRelay. Click the link <a href="http://mylink">here</a> to reset your password and login to the dashboard.</p>`
+			assertEmail(t, data, from+domain, subject, expectedBody)
+		})
 	})
+}
+
+func assertEmail(t *testing.T, data mailhogQueryResponse, from string, subject string, expectedBody string) {
+	actual := data.Items[0]
+	assert.Equal(t, "<"+from+">", actual.Content.Headers.From[0])
+	assert.Equal(t, subject, actual.Content.Headers.Subject[0])
+
+	r := quotedprintable.NewReader(strings.NewReader(actual.Content.Body))
+	b, _ := io.ReadAll(r)
+
+	assert.Contains(t, strings.ReplaceAll(strings.ReplaceAll(string(b), "\r\n", ""), "\t", ""), expectedBody)
+}
+
+func getEmail(t *testing.T, email string) mailhogQueryResponse {
+	res, err := http.Get("http://localhost:8025/api/v2/search?kind=to&query=" + email)
+	require.NoError(t, err)
+
+	var data mailhogQueryResponse
+	err = json.NewDecoder(res.Body).Decode(&data)
+	require.NoError(t, err)
+
+	assert.NotZero(t, data.Items)
+	return data
 }
 
 func deleteEmails(t *testing.T, data mailhogQueryResponse) {

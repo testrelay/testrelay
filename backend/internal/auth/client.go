@@ -13,7 +13,6 @@ import (
 	"firebase.google.com/go/v4/auth"
 	"firebase.google.com/go/v4/errorutils"
 
-	"github.com/testrelay/testrelay/backend/internal/core/assignment"
 	"github.com/testrelay/testrelay/backend/internal/core/user"
 )
 
@@ -56,10 +55,11 @@ func (f FirebaseClient) GetUserByEmail(email string) (user.AuthInfo, error) {
 	}, nil
 }
 
-// CreateUserFromAssignment generates a user for the newly created assignment.
-func (f FirebaseClient) CreateUserFromAssignment(a assignment.Full) (user.AuthInfo, error) {
+// CreateUser generates a user from the provided email. It expects the user will have a password
+// reset link generated. It sets a random password in the meantime.
+func (f FirebaseClient) CreateUser(name, email string) (user.AuthInfo, error) {
 	toCreate := &auth.UserToCreate{}
-	toCreate.DisplayName(a.CandidateName).Email(a.CandidateEmail).Password(randomPassword(8))
+	toCreate.DisplayName(name).Email(email).Password(randomPassword(8))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()

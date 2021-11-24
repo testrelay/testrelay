@@ -14,17 +14,48 @@ import (
 	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
-// TestRepositoryResolver implements a graphql resolver using a vcs app installation to
+// RepositoryResolver implements a graphql resolver using a vcs app installation to
 // find test repositories for a given organisation.
-type TestRepositoryResolver struct {
+type RepositoryResolver struct {
 	HasuraURL string
 	Collector core.RepoCollector
+}
+
+// Fields implements the Resolver interface returning a resolvable qraphql schema.
+// See ResolveRepos for query resolution functionality.
+func (r *RepositoryResolver) Fields() (graphql.Fields, graphql.Fields) {
+	repoType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Repo",
+		Fields: graphql.Fields{
+			"id": &graphql.Field{
+				Type: graphql.Int,
+			},
+			"full_name": &graphql.Field{
+				Type: graphql.String,
+			},
+		},
+	})
+
+	fields := graphql.Fields{
+		"repos": &graphql.Field{
+			Type:        graphql.NewList(repoType),
+			Description: "Get business repos",
+			Args: graphql.FieldConfigArgument{
+				"business_id": &graphql.ArgumentConfig{
+					Type: graphql.Int,
+				},
+			},
+			Resolve: r.ResolveRepos,
+		},
+	}
+
+	return fields, nil
 }
 
 // ResolveRepos returns a list of test repositories for the provided business_id in the graphql params.
 // It expects that a vcs app has been installed on the business and fetches the installation_id from
 // storage. ResolveRepos errors if no valid installation can be found or if fetching repositories fails.
-func (r *TestRepositoryResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error) {
+func (r *RepositoryResolver) ResolveRepos(p graphql.ResolveParams) (interface{}, error) {
 	id, ok := p.Args["business_id"].(int)
 	if !ok {
 		return []core.Repo{}, nil
