@@ -81,7 +81,7 @@ func TestHasuraClient(t *testing.T) {
 			assert.NoError(t, err)
 		}()
 
-		short, err := client.GetBusiness(d.Insert.ID)
+		short, err := client.GetBusiness(int64(d.Insert.ID))
 		require.NoError(t, err)
 
 		require.Equal(t, business.Short{

@@ -80,11 +80,12 @@ func (mr *MockAuthClientMockRecorder) GetUserByEmail(arg0 interface{}) *gomock.C
 }
 
 // SetCustomUserClaims mocks base method.
-func (m *MockAuthClient) SetCustomUserClaims(arg0 user.AuthClaims) error {
+func (m *MockAuthClient) SetCustomUserClaims(arg0 user.AuthClaims) (map[string]interface{}, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetCustomUserClaims", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(map[string]interface{})
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SetCustomUserClaims indicates an expected call of SetCustomUserClaims.

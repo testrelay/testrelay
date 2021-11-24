@@ -13,6 +13,8 @@ import (
 	"firebase.google.com/go/v4/auth"
 	"github.com/bxcodec/faker/v3"
 	"github.com/stretchr/testify/require"
+
+	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
 type graphErrors []struct {
@@ -34,6 +36,15 @@ func (e graphErrors) Error() string {
 type GraphQLClient struct {
 	Client  *http.Client
 	BaseURL string
+}
+
+func NewGraphQLClientFromOS() GraphQLClient {
+	return GraphQLClient{
+		BaseURL: os.Getenv("HASURA_URL") + "/v1/graphql",
+		Client: &http.Client{
+			Transport: &httputil.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
+		},
+	}
 }
 
 func (c GraphQLClient) Do(query string, variables map[string]interface{}, v interface{}) (string, error) {

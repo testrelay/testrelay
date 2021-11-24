@@ -22,7 +22,6 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
-	"github.com/testrelay/testrelay/backend/internal/httputil"
 	"github.com/testrelay/testrelay/backend/internal/store/graphql"
 	"github.com/testrelay/testrelay/backend/internal/test"
 )
@@ -99,12 +98,7 @@ func initGithubClient() {
 }
 
 func initGraphqlClients() {
-	rawGraphlClient = test.GraphQLClient{
-		BaseURL: os.Getenv("HASURA_URL") + "/v1/graphql",
-		Client: &http.Client{
-			Transport: &httputil.KeyTransport{Key: "x-hasura-admin-secret", Value: os.Getenv("HASURA_TOKEN")},
-		},
-	}
+	rawGraphlClient = test.NewGraphQLClientFromOS()
 
 	hasuraClient = graphql.NewHasuraClient(os.Getenv("HASURA_URL")+"/v1/graphql", os.Getenv("HASURA_TOKEN"))
 }

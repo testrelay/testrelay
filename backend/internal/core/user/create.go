@@ -10,7 +10,7 @@ import (
 type AuthClient interface {
 	GetUserByEmail(email string) (AuthInfo, error)
 	CreateUser(name, email string) (AuthInfo, error)
-	SetCustomUserClaims(claims AuthClaims) error
+	SetCustomUserClaims(claimInput AuthClaims) (map[string]interface{}, error)
 	GetPasswordResetLink(email, redirectLink string) (string, error)
 }
 
@@ -75,7 +75,7 @@ func (c AuthCreator) FirstOrCreate(data CreateParams) (AuthInfo, error) {
 		interviewing = nil
 	}
 
-	err = c.Auth.SetCustomUserClaims(AuthClaims{
+	claims, err := c.Auth.SetCustomUserClaims(AuthClaims{
 		AuthUID:      u.UID,
 		Interviewing: interviewing,
 		BusinessIDs:  businesses,
@@ -84,6 +84,7 @@ func (c AuthCreator) FirstOrCreate(data CreateParams) (AuthInfo, error) {
 		return u, fmt.Errorf("could not update existing user claims %w", err)
 	}
 
+	u.CustomClaims = claims
 	return u, nil
 }
 
@@ -109,7 +110,7 @@ func (c AuthCreator) createUser(data CreateParams) (AuthInfo, error) {
 		interviewing = nil
 	}
 
-	err = c.Auth.SetCustomUserClaims(AuthClaims{
+	claims, err := c.Auth.SetCustomUserClaims(AuthClaims{
 		ID:           u.ID,
 		AuthUID:      au.UID,
 		Interviewing: interviewing,
@@ -119,6 +120,7 @@ func (c AuthCreator) createUser(data CreateParams) (AuthInfo, error) {
 		return au, fmt.Errorf("could not set custom claims for new user %w", err)
 	}
 
+	au.CustomClaims = claims
 	au.New = true
 	return au, err
 }

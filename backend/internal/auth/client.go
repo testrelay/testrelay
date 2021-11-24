@@ -88,20 +88,20 @@ func (f FirebaseClient) CreateUser(name, email string) (user.AuthInfo, error) {
 
 // SetCustomUserClaims adds custom firebase claims which are required for access control with hasura.
 // These include role, business access control and user identities.
-func (f FirebaseClient) SetCustomUserClaims(claims user.AuthClaims) error {
-	if claims.AuthUID == "" {
-		return errors.New("auth id cannot be nil when setting claims")
+func (f FirebaseClient) SetCustomUserClaims(claimInput user.AuthClaims) (map[string]interface{}, error) {
+	if claimInput.AuthUID == "" {
+		return nil, errors.New("auth id cannot be nil when setting claims")
 	}
 
-	rec, err := f.Auth.GetUser(context.Background(), claims.AuthUID)
+	rec, err := f.Auth.GetUser(context.Background(), claimInput.AuthUID)
 	if err != nil {
-		return fmt.Errorf("could not fetch user claims to refresh, for auth id %s %w", claims.AuthUID, err)
+		return nil, fmt.Errorf("could not fetch user claims to refresh, for auth id %s %w", claimInput.AuthUID, err)
 	}
 
 	custom := map[string]interface{}{
 		"x-hasura-allowed-roles": []string{"user", "candidate"},
 		"x-hasura-default-role":  "user",
-		"x-hasura-user-id":       claims.AuthUID,
+		"x-hasura-user-id":       claimInput.AuthUID,
 	}
 
 	existing := make(map[string]interface{})
@@ -110,24 +110,24 @@ func (f FirebaseClient) SetCustomUserClaims(claims user.AuthClaims) error {
 	}
 
 	if v, ok := existing["x-hasura-user-pk"]; ok {
-		claims.ID, err = strconv.ParseInt(v.(string), 10, 64)
+		claimInput.ID, err = strconv.ParseInt(v.(string), 10, 64)
 		if err != nil {
-			return fmt.Errorf("could not parse user claims existing pk %w", err)
+			return nil, fmt.Errorf("could not parse user claims existing pk %w", err)
 		}
 	}
 
-	if claims.ID == 0 {
-		return fmt.Errorf("user claims must contain a valid pk")
+	if claimInput.ID == 0 {
+		return nil, fmt.Errorf("user claims must contain a valid pk")
 	}
 
-	custom["x-hasura-user-pk"] = fmt.Sprintf("%d", claims.ID)
+	custom["x-hasura-user-pk"] = fmt.Sprintf("%d", claimInput.ID)
 
-	businessIds := claims.BusinessIDs
+	businessIds := claimInput.BusinessIDs
 	if v, ok := existing["x-hasura-business-ids"]; ok {
 		businessIds = appendToExisting(v.(string), businessIds)
 	}
 
-	interviewingIds := claims.Interviewing
+	interviewingIds := claimInput.Interviewing
 	if v, ok := existing["x-hasura-interviewing-ids"]; ok {
 		interviewingIds = appendToExisting(v.(string), interviewingIds)
 	}
@@ -135,14 +135,15 @@ func (f FirebaseClient) SetCustomUserClaims(claims user.AuthClaims) error {
 	custom["x-hasura-business-ids"] = intSliceToString(businessIds)
 	custom["x-hasura-interviewing-ids"] = intSliceToString(interviewingIds)
 
-	err = f.Auth.SetCustomUserClaims(context.Background(), claims.AuthUID, map[string]interface{}{
+	claims := map[string]interface{}{
 		f.CustomClaimName: custom,
-	})
+	}
+	err = f.Auth.SetCustomUserClaims(context.Background(), claimInput.AuthUID, claims)
 	if err != nil {
-		return fmt.Errorf("could not set custom claims %+v %w", custom, err)
+		return nil, fmt.Errorf("could not set custom claims %+v %w", custom, err)
 	}
 
-	return nil
+	return claims, nil
 }
 
 // GetPasswordResetLink generates a password reset link for the provided email.

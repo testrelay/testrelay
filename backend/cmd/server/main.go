@@ -153,7 +153,9 @@ func run() {
 
 	gh, err := api.NewGraphQLQueryHandler(
 		config.HasuraURL+"/v1/graphql",
-		config.FirebaseProjectID,
+		&auth.FirebaseVerifier{
+			ProjectID: config.FirebaseProjectID,
+		},
 		&api.RepositoryResolver{
 			HasuraURL: config.HasuraURL + "/v1/graphql",
 			Collector: collector,

@@ -1,5 +1,6 @@
 package api
 
+//go:generate mockgen -destination mocks/handler.go -package mocks . Verifier
 import (
 	"context"
 	"encoding/json"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/graphql-go/graphql"
 
-	"github.com/testrelay/testrelay/backend/internal/auth"
 	"github.com/testrelay/testrelay/backend/internal/httputil"
 )
 
@@ -64,20 +64,24 @@ func newSchema(resolvers ...Resolver) (graphql.Schema, error) {
 	return schema, nil
 }
 
+type Verifier interface {
+	Parse(token string) error
+}
+
 // GraphQLQueryHandler is a struct that implements the base http.Handler interface.
 // It deals with inbound graphql requests, including introspection. Handing off
 // queries to local resolvers.
 type GraphQLQueryHandler struct {
 	hasuraURL string
 	schema    graphql.Schema
-	verifier  auth.FirebaseVerifier
+	verifier  Verifier
 }
 
 // NewGraphQLQueryHandler returns a GraphQLQueryHandler with initialized base schema.
 // It returns an error if there is an issue initializing the schema for the handler.
 // It accepts any number of graphql Resolvers. These Resolvers must define unique query/mutation keys
 // Otherwise they will be overwritten when the schema is initialized.
-func NewGraphQLQueryHandler(hasuraURL, projectID string, resolvers ...Resolver) (*GraphQLQueryHandler, error) {
+func NewGraphQLQueryHandler(hasuraURL string, verifier Verifier, resolvers ...Resolver) (*GraphQLQueryHandler, error) {
 	schema, err := newSchema(resolvers...)
 	if err != nil {
 		return nil, err
@@ -86,9 +90,7 @@ func NewGraphQLQueryHandler(hasuraURL, projectID string, resolvers ...Resolver) 
 	return &GraphQLQueryHandler{
 		hasuraURL: hasuraURL,
 		schema:    schema,
-		verifier: auth.FirebaseVerifier{
-			ProjectID: projectID,
-		},
+		verifier:  verifier,
 	}, nil
 }
 
