@@ -153,6 +153,8 @@ func TestGraphQLQueryHandler(t *testing.T) {
 
 			expectedBody := `<p>You've received an invite to join ` + d.Insert.Name + ` on TestRelay. Click the link <a href="https://testrelay-sandbox.firebaseapp.com`
 			test.AssertEmail(t, data, "info@testrelay.io", "You've been invited to join "+d.Insert.Name+" on TestRelay", expectedBody)
+
+			assert.JSONEq(t, fmt.Sprintf(`{"data":{"inviteUser": {"id": %d}}}`, users.Users[0].Id), w.Body.String())
 		})
 	})
 }

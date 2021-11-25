@@ -69,5 +69,5 @@ func (u UserResolver) InviteUser(p graphql.ResolveParams) (interface{}, error) {
 		return nil, fmt.Errorf("could not invite user %s to business", email)
 	}
 
-	return a, nil
+	return map[string]int64{"id": a.PK()}, nil
 }
