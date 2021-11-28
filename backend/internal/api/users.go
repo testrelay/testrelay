@@ -28,6 +28,9 @@ func (u UserResolver) Fields() (graphql.Fields, graphql.Fields) {
 			"id": &graphql.Field{
 				Type: graphql.Int,
 			},
+			"email": &graphql.Field{
+				Type: graphql.String,
+			},
 		},
 	})
 
@@ -50,6 +53,11 @@ func (u UserResolver) Fields() (graphql.Fields, graphql.Fields) {
 	}
 }
 
+type InviteUserResponse struct {
+	ID    int64  `json:"id"`
+	Email string `json:"email"`
+}
+
 // InviteUser parses the graphql request and passes the variables down to the Inviter.
 // If there is an error we'll return a friendly user error and handoff the error stack to the logger.
 func (u UserResolver) InviteUser(p graphql.ResolveParams) (interface{}, error) {
@@ -69,5 +77,8 @@ func (u UserResolver) InviteUser(p graphql.ResolveParams) (interface{}, error) {
 		return nil, fmt.Errorf("could not invite user %s to business", email)
 	}
 
-	return map[string]int64{"id": a.PK()}, nil
+	return InviteUserResponse{
+		ID:    a.PK(),
+		Email: a.Email,
+	}, nil
 }

@@ -36,6 +36,7 @@ var fetchUserQ = `
 query ($email: String!) {
   users(where: {email: {_eq: $email}}) {
     id
+	email
   }
 }
 `
@@ -103,7 +104,7 @@ func TestGraphQLQueryHandler(t *testing.T) {
 			link := "https://app.testrelay.io"
 			email := faker.Email()
 			r, err := http.NewRequest(http.MethodPost, "/graphql", strings.NewReader(fmt.Sprintf(`{
-	"query": "mutation {inviteUser(business_id:%d, email:\"%s\", redirect_link:\"%s\") { id }}"
+	"query": "mutation {inviteUser(business_id:%d, email:\"%s\", redirect_link:\"%s\") { id,email }}"
 }`, d.Insert.ID, email, link)))
 			require.NoError(t, err)
 			token := faker.UUIDHyphenated()
@@ -154,7 +155,7 @@ func TestGraphQLQueryHandler(t *testing.T) {
 			expectedBody := `<p>You've received an invite to join ` + d.Insert.Name + ` on TestRelay. Click the link <a href="https://testrelay-sandbox.firebaseapp.com`
 			test.AssertEmail(t, data, "info@testrelay.io", "You've been invited to join "+d.Insert.Name+" on TestRelay", expectedBody)
 
-			assert.JSONEq(t, fmt.Sprintf(`{"data":{"inviteUser": {"id": %d}}}`, users.Users[0].Id), w.Body.String())
+			assert.JSONEq(t, fmt.Sprintf(`{"data":{"inviteUser": {"id": %d, "email": %q}}}`, users.Users[0].Id, strings.ToLower(email)), w.Body.String())
 		})
 	})
 }

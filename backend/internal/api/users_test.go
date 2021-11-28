@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -36,11 +37,24 @@ func TestUserResolver(t *testing.T) {
 				},
 			}
 
-			expected := &user.AuthInfo{UID: uuid.New().String()}
-			inviter.EXPECT().Invite(email, link, int64(businessID)).Return(expected, nil)
+			userID := 776
+			info := &user.AuthInfo{
+				UID:   uuid.New().String(),
+				Email: email,
+				CustomClaims: map[string]interface{}{
+					user.CustomClaimKey: map[string]interface{}{
+						"x-hasura-user-pk": fmt.Sprintf("%d", userID),
+					},
+				},
+			}
+			inviter.EXPECT().Invite(email, link, int64(businessID)).Return(info, nil)
 			actual, err := r.InviteUser(p)
 			require.NoError(t, err)
 
+			expected := api.InviteUserResponse{
+				ID:    int64(userID),
+				Email: email,
+			}
 			assert.Equal(t, expected, actual)
 		})
 	})
