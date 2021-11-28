@@ -146,13 +146,6 @@ const Sidebar = (props) => {
     return (
 
         <div className="h-full">
-            <div className="px-4 py-2 bg-blue-600 text-center shadow">
-                <span className="text-white mx-auto">We're in <span className="text-yellow-400">alpha</span>, please help us squash bugs by <a
-                    className="hover:text-yellow-300 text-yellow-400"
-                    href="https://github.com/testrelay/testrelay/issues">reporting issues here</a> or chatting with us <a
-                    className="hover:text-yellow-300 text-yellow-400"
-                    href="https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ">here</a>.</span>
-            </div>
             <div className="bg-gray-100 drawer drawer-mobile h-full">
                 <input id="my-drawer-2" type="checkbox" className="drawer-toggle"/>
                 <div className="drawer-content">
@@ -179,7 +172,14 @@ const Sidebar = (props) => {
                 </div>
                 <div className="drawer-side gap-1 shadow-xl">
                     <label htmlFor="my-drawer-2" className="drawer-overlay"/>
-                    <div className="menu py-4 overflow-y-auto w-80 text-base-content bg-white">
+                    <div className="menu pb-4 overflow-y-auto w-80 text-base-content bg-white">
+                        <div className="px-4 py-3 mb-4 bg-blue-600">
+                            <span className="text-white text-sm">We're in <span className="text-yellow-400">alpha</span>, please help us squash bugs by <a
+                                className="hover:text-yellow-300 text-yellow-400"
+                                href="https://github.com/testrelay/testrelay/issues">reporting issues</a> or chatting with us <a
+                                className="hover:text-yellow-300 text-yellow-400"
+                                href="https://join.slack.com/t/newworkspace-up55834/shared_invite/zt-xtb6rzic-20b8K6yLT_trVgUEqnuYCQ">here</a>.</span>
+                        </div>
                         <ul className="px-0">
                             <li className="mb-6 px-4">
                                 <div className="flex pb-6 pl-4 items-center border-b-4">

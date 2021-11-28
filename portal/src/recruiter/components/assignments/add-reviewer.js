@@ -1,10 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import CreatableSelect from 'react-select/creatable';
-import {GET_USERS} from "../users/queries";
-import {getFunctions, httpsCallable} from "@firebase/functions";
-import firebase from "../../../auth/firebase";
+import {GET_USERS, INVITE_USER} from "../users/queries";
 import {useBusiness} from "../business/hook";
-import {useQuery} from '@apollo/client';
+import {useMutation, useQuery} from '@apollo/client';
 import {AlertError} from '../../../components/alerts';
 
 const AddReviewer = (props) => {
@@ -13,6 +11,7 @@ const AddReviewer = (props) => {
     const [error, setError] = useState(null);
     const [vals, setVals] = useState([]);
     const {selected} = useBusiness();
+    const [inviteUser, {data: muData, loading: muLoading, error: muError}] = useMutation(INVITE_USER);
 
     const {data, loading: queryLoading} = useQuery(GET_USERS, {
         fetchPolicy: 'network-only',
@@ -25,15 +24,33 @@ const AddReviewer = (props) => {
         if (data) {
             const options = data.users.map((e) => {
                 return {value: e.id, label: e.email};
-            })
+            });
 
             setUsers(options);
         }
     }, [data]);
 
     useEffect(() => {
-        setLoading(queryLoading);
-    }, [queryLoading]);
+        if (muData) {
+            const value = users.find(e => {
+                return e.value === muData.data.id;
+            });
+
+            setVals(v => [...v, {id: muData.data.inviteUser.id}]);
+            setUsers(v => [...v, {value: muData.data.inviteUser.id, label: value}]);
+        }
+    }, [muData, users]);
+
+    useEffect(() => {
+        if (muError) {
+            setError("could not invite user please refresh and try again");
+            setLoading(false);
+        }
+    }, [muError])
+
+    useEffect(() => {
+        setLoading(queryLoading || muLoading);
+    }, [queryLoading, muLoading]);
 
     const handleChange = (options) => {
         setVals(options);
@@ -44,21 +61,18 @@ const AddReviewer = (props) => {
     };
 
     const handleCreate = async (value) => {
-        setLoading(true);
-
-        const functions = getFunctions(firebase, "europe-west2");
-        const invite = httpsCallable(functions, "inviteUser");
-
         try {
-            const data = await invite({email: value, business_name: selected.name, business_id: selected.id});
-            setVals([...vals, {id: data.id}])
-            setUsers([...vals, {value: data.id, label: value}])
-            setLoading(false);
-        } catch (error) {
-            setError("could not invite user " + value + " please refresh and try again");
-            setLoading(false);
+            await inviteUser({
+                variables: {
+                    business_id: selected.id,
+                    email: value,
+                    redirect_link: process.env.REACT_APP_URL + "/assignments/assigned"
+                }
+            });
+        } catch (e) {
+
         }
-    };
+    }
 
 
     return (
@@ -93,6 +107,8 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const {selected} = useBusiness();
+    const [inviteUser, {data: muData, loading: muLoading, error: muError}] = useMutation(INVITE_USER);
+    const [options, setOptions] = useState([]);
 
     const {data, loading: queryLoading} = useQuery(GET_USERS, {
         fetchPolicy: 'network-only',
@@ -107,20 +123,40 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
         return ob;
     }, {});
 
-    let options = [];
-    if (data != null) {
-        options = data.users.reduce((arr, e) => {
-            if (lookup[e.id] == null) {
-                arr.push({value: e.id, label: e.email});
-            }
+    useEffect(() => {
+        if (data != null) {
+            const options = data.users.reduce((arr, e) => {
+                if (lookup[e.id] == null) {
+                    arr.push({value: e.id, label: e.email});
+                }
 
-            return arr;
-        }, [])
-    }
+                return arr;
+            }, []);
+
+            setOptions(options);
+        }
+    }, [data])
 
     useEffect(() => {
-        setLoading(queryLoading);
-    }, [queryLoading]);
+        if (muData) {
+            const value = options.find(e => {
+                return e.value === muData.data.inviteUser.id;
+            });
+
+            addUser({user: {id: muData.data.inviteUser.id, email: value, github_username: null}})
+        }
+    }, [muData, options]);
+
+    useEffect(() => {
+        if (muError) {
+            setError("could not invite user please refresh and try again");
+            setLoading(false);
+        }
+    }, [muError])
+
+    useEffect(() => {
+        setLoading(queryLoading || muLoading);
+    }, [queryLoading, muLoading]);
 
     const handleChange = (option) => {
         const user = data.users.find((ob) => {
@@ -131,21 +167,17 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
     };
 
     const handleCreate = async (value) => {
-        setLoading(true);
-
-        const functions = getFunctions(firebase, "europe-west2");
-        const invite = httpsCallable(functions, "inviteUser");
-
         try {
-            const data = await invite({email: value, business_name: selected.name, business_id: selected.id});
-            addUser({user: {id: data.id, email: value, github_username: null}})
-            setLoading(false);
-        } catch (error) {
-            console.log(error);
-            setError("could not invite user " + value + " please refresh and try again");
-            setLoading(false);
+            await inviteUser({
+                variables: {
+                    business_id: selected.id,
+                    email: value,
+                    redirect_link: process.env.REACT_APP_URL + "/assignments/assigned"
+                }
+            });
+        } catch (e) {
         }
-    };
+    }
 
     return (
         <div className="mb-2">
