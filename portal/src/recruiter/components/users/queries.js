@@ -19,6 +19,7 @@ const INVITE_USER = gql`
     mutation ($business_id: Int!, $email: String!, $redirect_link: String!){
         inviteUser(business_id: $business_id, email: $email, redirect_link: $redirect_link) {
             id
+            email
         }
     }
 `

@@ -32,14 +32,10 @@ const AddReviewer = (props) => {
 
     useEffect(() => {
         if (muData) {
-            const value = users.find(e => {
-                return e.value === muData.data.id;
-            });
-
-            setVals(v => [...v, {id: muData.data.inviteUser.id}]);
-            setUsers(v => [...v, {value: muData.data.inviteUser.id, label: value}]);
+            setVals(v => [...v, {id: muData.inviteUser.id}]);
+            setUsers(v => [...v, {value: muData.inviteUser.id, label: muData.inviteUse.email}]);
         }
-    }, [muData, users]);
+    }, [muData]);
 
     useEffect(() => {
         if (muError) {
@@ -139,13 +135,9 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
 
     useEffect(() => {
         if (muData) {
-            const value = options.find(e => {
-                return e.value === muData.data.inviteUser.id;
-            });
-
-            addUser({user: {id: muData.data.inviteUser.id, email: value, github_username: null}})
+            addUser({user: {id: muData.inviteUser.id, email: muData.inviteUser.email, github_username: null}})
         }
-    }, [muData, options]);
+    }, [muData]);
 
     useEffect(() => {
         if (muError) {
