@@ -33,7 +33,7 @@ const AddReviewer = (props) => {
     useEffect(() => {
         if (muData) {
             setVals(v => [...v, {id: muData.inviteUser.id}]);
-            setUsers(v => [...v, {value: muData.inviteUser.id, label: muData.inviteUse.email}]);
+            setUsers(v => [...v, {value: muData.inviteUser.id, label: muData.inviteUser.email}]);
         }
     }, [muData]);
 
@@ -105,6 +105,7 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
     const {selected} = useBusiness();
     const [inviteUser, {data: muData, loading: muLoading, error: muError}] = useMutation(INVITE_USER);
     const [options, setOptions] = useState([]);
+    const [lookup, setLookup] = useState({});
 
     const {data, loading: queryLoading} = useQuery(GET_USERS, {
         fetchPolicy: 'network-only',
@@ -113,11 +114,15 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
         },
     });
 
-    const lookup = selectedUsers.reduce((ob, u) => {
-        ob[u.user.id] = u;
+    useEffect(() => {
+        const lookup = selectedUsers.reduce((ob, u) => {
+            ob[u.user.id] = u;
 
-        return ob;
-    }, {});
+            return ob;
+        }, {});
+
+        setLookup(lookup);
+    }, [selectedUsers])
 
     useEffect(() => {
         if (data != null) {
@@ -131,13 +136,13 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
 
             setOptions(options);
         }
-    }, [data])
+    }, [data, lookup])
 
     useEffect(() => {
         if (muData) {
             addUser({user: {id: muData.inviteUser.id, email: muData.inviteUser.email, github_username: null}})
         }
-    }, [muData]);
+    }, [muData, addUser]);
 
     useEffect(() => {
         if (muError) {
@@ -160,6 +165,14 @@ const UpdateReviewer = ({selectedUsers, addUser}) => {
 
     const handleCreate = async (value) => {
         try {
+            const exists = options.find(e => {
+                return e.label === value;
+            });
+
+            if (exists != null) {
+                return;
+            }
+
             await inviteUser({
                 variables: {
                     business_id: selected.id,

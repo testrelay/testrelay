@@ -1,5 +1,5 @@
 import {useMutation, useQuery} from "@apollo/client";
-import React, {useState} from "react";
+import React, {useCallback, useState} from "react";
 import {Link, useParams} from "react-router-dom";
 import {Loading} from "../../../components";
 import {AlertError} from "../../../components/alerts";
@@ -124,7 +124,7 @@ const AssignmentView = () => {
                 <div className="w-full sm:w-3/4 md:w-2/3">
                     <Timeline id={id}
                               assignment={data.assignments_by_pk}
-                              />
+                    />
                 </div>
             </div>
         </div>
@@ -149,10 +149,10 @@ const Reviewers = ({reviewers, assignment_id}) => {
         deleteUser({variables: {user_id: id}});
     }
 
-    const addUser = (option) => {
-        setUsers([...users, option]);
+    const addUser = useCallback((option) => {
+        setUsers(users => [...users, option]);
         insertUser({variables: {user_id: option.user.id, assignment_id}});
-    }
+    }, [assignment_id, insertUser]);
 
     const formatted = users.map((r) => {
         let g = (<span className="ml-2">github not connected.</span>)
@@ -165,8 +165,9 @@ const Reviewers = ({reviewers, assignment_id}) => {
         }
 
         g = (
-            <span className={"text-sm text-"+colour+"-300 flex items-start sm:items-center"}>
-				<svg className={"h-5 w-5 sm:h-4 sm:w-4 text-"+colour+"-300"} width="20px" height="20px" viewBox="0 0 256 250" version="1.1"
+            <span className={"text-sm text-" + colour + "-300 flex items-start sm:items-center"}>
+				<svg className={"h-5 w-5 sm:h-4 sm:w-4 text-" + colour + "-300"} width="20px" height="20px"
+                     viewBox="0 0 256 250" version="1.1"
                      preserveAspectRatio="xMidYMid">
 					<g>
 						<path fill="currentColor"
