@@ -27,20 +27,13 @@ const INVITE_USER = gql`
 const GET_USER = gql`
     query GetUser($id: Int!) {
         users_by_pk(id: $id) {
+            id
             github_username
             email
             created_at
+            auth_id
         }
     }
 `
-const GET_AUTHED = gql`
-    query GetUser($limit: Int = 1) {
-        users(limit: $limit) {
-            id
-            email
-            github_username
-            auth_id
-        }
-    }`
 
-export {GET_USERS, INVITE_USER, GET_USER, GET_AUTHED};
+export {GET_USERS, INVITE_USER, GET_USER};

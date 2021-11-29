@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {NetworkStatus, useQuery} from '@apollo/client';
 import {Link, useLocation} from 'react-router-dom';
 import {useFirebaseAuth} from '../../../auth/firebase-hooks';
@@ -6,8 +6,8 @@ import {Loading} from '../../../components';
 import {GET_ASSIGNED} from '../../components/assignments/queries';
 import {getFunctions, httpsCallable} from '@firebase/functions';
 import firebase from '../../../auth/firebase';
-import {GET_AUTHED} from '../../components/users/queries';
 import {AlertError} from '../../../components/alerts';
+import {GET_USER} from "../../components/users/queries";
 
 
 const Status = (props) => {
@@ -44,69 +44,15 @@ const Status = (props) => {
     )
 }
 
-const Grid = () => {
-    const location = useLocation();
-    const params = new URLSearchParams(location.search);
-    const code = params.get('code');
-
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    const {loading: userLoading, data: userData, refetch, networkStatus} = useQuery(GET_AUTHED);
-
-    useEffect(() => {
-        const linkGithub = async (data) => {
-            if (code != null && data.github_username == null && networkStatus !== NetworkStatus.refetch) {
-                setLoading(true);
-                const functions = getFunctions(firebase, "europe-west2");
-                const authenticateGithub = httpsCallable(functions, "authenticateGithub");
-
-                try {
-                    const response = await authenticateGithub({code});
-                    if (response.data.status === "ok") {
-                        refetch();
-                        return;
-                    }
-
-                    setError("could not link github to account please try again");
-                } catch (e) {
-                    setError("could not link github to account please try again");
-                }
-            }
-
-            setLoading(false);
-        }
-
-        if (userLoading || networkStatus === NetworkStatus.refetch) {
-            setLoading(true);
-        }
-
-        if (userData && !userData.users) {
-            setError("could not fetch user information, please refresh the browser")
-            setLoading(false);
-        }
-
-        if (userData && userData.users.length > 0) {
-            setUser(userData.users[0]);
-            linkGithub(userData.users[0]);
-        }
-
-    }, [code, userLoading, userData, networkStatus, refetch])
-
-    if (loading) {
-        return <Loading/>
-    }
-
-    if (user.github_username == null) {
-        return (
-            <div className="border-4 border-gray-200 border-dashed p-8 rounded flex justify-center items-center">
-                <div className="max-w-md text-center justify-center">
-                    {error && <div className="mb-4"><AlertError message={error}/></div>}
-                    <p className="text-md mb-4">You'll need to link your account to github before seeing your assigned
-                        reviews. This is so we can give you collaborator access to generated repositories.</p>
-                    <a href={`https://github.com/login/oauth/authorize?scope=user&client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&redirect_uri=${window.location.protocol + '//' + window.location.host + window.location.pathname}`}
-                       className="mb-2 group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 max-w-xs mx-auto">
+function GithubHolder({error}) {
+    return (
+        <div className="border-4 border-gray-200 border-dashed p-8 rounded flex justify-center items-center">
+            <div className="max-w-md text-center justify-center">
+                {error && <div className="mb-4"><AlertError message={error}/></div>}
+                <p className="text-md mb-4">You'll need to link your account to github before seeing your assigned
+                    reviews. This is so we can give you collaborator access to generated repositories.</p>
+                <a href={`https://github.com/login/oauth/authorize?scope=user&client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&redirect_uri=${window.location.protocol + '//' + window.location.host + window.location.pathname}`}
+                   className="mb-2 group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 max-w-xs mx-auto">
                         <span className="absolute left-0 inset-y-0 flex items-center pl-3">
                             <svg className="h-5 w-5 text-gray-100 group-hover:text-gray-200" width="20px" height="20px"
                                  viewBox="0 0 256 250" version="1.1" preserveAspectRatio="xMidYMid">
@@ -116,11 +62,76 @@ const Grid = () => {
                                 </g>
                             </svg>
                         </span>
-                        Authenticate
-                    </a>
-                </div>
+                    Authenticate
+                </a>
             </div>
-        )
+        </div>
+    )
+}
+
+const Grid = () => {
+    const location = useLocation();
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const {claims} = useFirebaseAuth(null);
+
+    const {loading: userLoading, data: userData, refetch, networkStatus} = useQuery(GET_USER, {
+        skip: !claims,
+        variables: {id: claims['x-hasura-user-pk']}
+    });
+
+    const linkGithub = useCallback(async (code) => {
+        const functions = getFunctions(firebase, "europe-west2");
+        const authenticateGithub = httpsCallable(functions, "authenticateGithub");
+
+        try {
+            const response = await authenticateGithub({code});
+            if (response.data.status === "ok") {
+                refetch();
+                return;
+            }
+
+            setError("could not link github to account please try again");
+        } catch (e) {
+            setError("could not link github to account please try again");
+        }
+    }, [refetch]);
+
+    useEffect(() => {
+        if (userLoading || networkStatus === NetworkStatus.refetch) {
+            setLoading(true);
+        }
+
+        if (userLoading === false) {
+            setLoading(false);
+        }
+    }, [userLoading, networkStatus]);
+
+    useEffect(() => {
+        if (userData && !userData.users_by_pk) {
+            setError("could not fetch user information, please refresh the browser")
+            setLoading(false);
+        }
+
+        if (userData && userData.users_by_pk) {
+            const data = userData.users_by_pk;
+            setUser(data);
+            if (code != null && data.github_username == null && networkStatus !== NetworkStatus.refetch) {
+                linkGithub(code);
+            }
+        }
+    }, [code, userData, networkStatus, linkGithub])
+
+    if (loading) {
+        return <Loading/>
+    }
+
+    if (user.github_username == null) {
+        return <GithubHolder error={error}/>;
     }
 
     return (<Assignments/>)
