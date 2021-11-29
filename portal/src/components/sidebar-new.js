@@ -74,7 +74,7 @@ const BusinessSelect = (props) => {
     }
 
     const change = (ev) => {
-        const selected = data.businesses.find(e => e.id === ev.target.value);
+        const selected = data.businesses.find(e => e.id === parseInt(ev.target.value));
         props.setSelected(selected);
     }
 
