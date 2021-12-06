@@ -19,7 +19,7 @@
 
 Modern technical interviewing platforms have two main problems:
 
-1. They focus heavily on short algorithm challenges, which aren't anywhere close to a what the majority of engineers work on day to day
+1. They focus heavily on short algorithm challenges, which aren't anywhere close to  what the majority of engineers work on day to day
 2. They're incredibly expensive
 
 TestRelay is an attempt to solve these issues. TestRelay allows you to write your own domain specific technical tests, whilst providing the power of automated scheduling and test running. TestRelay is 100% opensource and free to use, allowing even small teams to have a robust interviewing strategy.
