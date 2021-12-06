@@ -36,8 +36,8 @@ const INSERT_REPO = gql`
 `
 
 const GET_TESTS = gql`
-    query GetTests($offset: Int = 0, $limit: Int = 10) {
-        tests(order_by: {created_at: desc}, limit: $limit, offset: $offset) {
+    query GetTests($offset: Int = 0, $limit: Int = 10, $business_id: Int!) {
+        tests(where: {business_id: {_eq: $business_id}}, order_by: {created_at: desc}, limit: $limit, offset: $offset) {
             id
             name
             zip

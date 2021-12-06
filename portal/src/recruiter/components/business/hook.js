@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {useQuery} from '@apollo/client';
 import {GET_BUSINESS} from './queries';
 import {useFirebaseAuth} from '../../../auth/firebase-hooks';
@@ -22,22 +22,16 @@ const useBusinesses = () => {
     const stored = getSelected();
 
     const [selected, setSelected] = useState(stored);
-    const [loading, setLoading] = useState(!stored);
+    const [loading, setLoading] = useState(true);
     const {user, claims, loading: userLoading} = useFirebaseAuth(null);
 
     const id = claims ? parseInt(claims["x-hasura-user-pk"]) : null;
-    const {data, error} = useQuery(GET_BUSINESS, {
+    const {data, error, loading: businessLoading} = useQuery(GET_BUSINESS, {
         skip: !claims || selected,
         fetchPolicy: 'network-only',
     });
 
-    /* eslint-disable */
-    const choose = (val) => {
-        persistSelected(val);
-        setLoading(false);
-    }
-
-    const persistSelected = (val) => {
+    const choose = useCallback((val) => {
         if (val) {
             localStorage.setItem('business', JSON.stringify(val));
         } else {
@@ -45,20 +39,31 @@ const useBusinesses = () => {
         }
 
         setSelected(val);
-    }
-
+    }, [setSelected]);
 
     useEffect(() => {
         if (error) {
             choose(null);
         }
-    }, [error]);
+    }, [choose, error]);
+
+    useEffect(() => {
+        if (selected) {
+            setLoading(false);
+        }
+    }, [selected]);
 
     useEffect(() => {
         if (user == null && userLoading === false) {
-            persistSelected(null);
+            choose(null);
         }
-    }, [user, userLoading]);
+    }, [choose, user, userLoading]);
+
+    useEffect(() => {
+        if (businessLoading) {
+            setLoading(true);
+        }
+    }, [businessLoading]);
 
     useEffect(() => {
         if (data) {
@@ -74,12 +79,9 @@ const useBusinesses = () => {
                 choose(returned[0]);
             }
         }
-        // eslint-disable
-    }, [data, id])
+    }, [choose, data, id])
 
-    /* eslint-enable */
-
-    return {loading, selected, setSelected: persistSelected};
+    return {loading, selected, setSelected: choose};
 }
 
 const BusinessProvider = ({children}) => {

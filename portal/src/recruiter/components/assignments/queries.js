@@ -26,13 +26,13 @@ const INSERT_ASSIGNMENT = gql`
 `
 
 const GET_ASSIGNMENTS = gql`
-    query GetAssignments($offset: Int = 0, $limit: Int = 10) {
+    query GetAssignments($offset: Int = 0, $limit: Int = 10, $business_id: Int!) {
          assignments_aggregate {
             aggregate {
                 count(distinct: false)
             }
         }
-        assignments(order_by: {created_at: desc}, limit: $limit, offset: $offset) {
+        assignments(where: {test: {business_id: {_eq: $business_id}}}, order_by: {created_at: desc}, limit: $limit, offset: $offset) {
             id
             candidate_email
             candidate_name
