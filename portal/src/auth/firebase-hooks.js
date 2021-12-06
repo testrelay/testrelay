@@ -52,7 +52,7 @@ const useRecruiter = () => {
 
             console.log('user', user)
             setState(s => {
-                return {...s, loading: false, user}
+                return {...s, loading: false, user, claims: null}
             });
         });
 
